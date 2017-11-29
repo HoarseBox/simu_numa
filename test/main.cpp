@@ -54,11 +54,15 @@ void* assignData(void* args){
 
 
 int main(int argc, char** argv){
-	int coreNum1;
-	int coreNum2;
+	int coreNum1 = 0;
+	int coreNum2 = 7;
 
-	sscanf(argv[1], "%d", &coreNum1);
-	sscanf(argv[2], "%d", &coreNum2);
+	// int coreNum1;
+	// int coreNum2;
+
+	// sscanf(argv[1], "%d", &coreNum1);
+	// sscanf(argv[2], "%d", &coreNum2);
+
 	// threads to assign data
 	pthread_t threadOnCore0;
 	pthread_t threadOnCore1;
@@ -84,9 +88,9 @@ int main(int argc, char** argv){
 	CPU_ZERO(&cpus);
 	CPU_SET(3, &cpus);
 	int success = pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-	if (success!=0) cout<<"set thread affinity fail!"<<endl;	
+	// if (success!=0) cout<<"set thread affinity fail!"<<endl;	
 	success = pthread_create(&threadOnCore0, &attr, assignData, (void*)&parameter0);
-	if (success!=0) cout<<"set thread affinity fail!"<<endl;
+	// if (success!=0) cout<<"set thread affinity fail!"<<endl;
 	pthread_attr_init(&attr);
 	CPU_ZERO(&cpus);
 	CPU_SET(3, &cpus);
@@ -121,40 +125,40 @@ int main(int argc, char** argv){
 		p[i].ID = i;
 	}
 
-	for (int j=0; j<20; j++){
+	// for (int j=0; j<20; j++){
 
-		for (int i=0; i<NumThreads; i++){
-			pthread_attr_init(&attr);
-			CPU_ZERO(&cpus);
-			CPU_SET(coreNum1, &cpus);
-			int threadNum = i;
-			int success = pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-			if (success!=0) cout<<"set thread affinity fail!"<<endl;
-			pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
-		}
+	// 	for (int i=0; i<NumThreads; i++){
+	// 		pthread_attr_init(&attr);
+	// 		CPU_ZERO(&cpus);
+	// 		CPU_SET(coreNum1, &cpus);
+	// 		int threadNum = i;
+	// 		int success = pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+	// 		if (success!=0) cout<<"set thread affinity fail!"<<endl;
+	// 		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
+	// 	}
 
-		for (int i=0; i<NumThreads; i++){
-			pthread_join(threads[i], NULL);
-		}
+	// 	for (int i=0; i<NumThreads; i++){
+	// 		pthread_join(threads[i], NULL);
+	// 	}
 
-		auto start = chrono::high_resolution_clock::now();
-		for (int i=0; i<NumThreads; i++){
-			pthread_attr_init(&attr);
-			CPU_ZERO(&cpus);
-			CPU_SET(coreNum2, &cpus);
-			int threadNum = i;
-				int success = pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-			if (success!=0) cout<<"set thread affinity fail!"<<endl;
-			pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
-		}
+	// 	auto start = chrono::high_resolution_clock::now();
+	// 	for (int i=0; i<NumThreads; i++){
+	// 		pthread_attr_init(&attr);
+	// 		CPU_ZERO(&cpus);
+	// 		CPU_SET(coreNum2, &cpus);
+	// 		int threadNum = i;
+	// 			int success = pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+	// 		if (success!=0) cout<<"set thread affinity fail!"<<endl;
+	// 		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
+	// 	}
 
-		for (int i=0; i<NumThreads; i++){
-			pthread_join(threads[i], NULL);
-		}
+	// 	for (int i=0; i<NumThreads; i++){
+	// 		pthread_join(threads[i], NULL);
+	// 	}
 	
-		auto end = chrono::high_resolution_clock::now();
-		std::chrono::duration<double> diff = end - start;
-		cout<<"It took me "<<diff.count()<<"seconds."<<endl;
-	}
+	// 	auto end = chrono::high_resolution_clock::now();
+	// 	std::chrono::duration<double> diff = end - start;
+	// 	cout<<"It took me "<<diff.count()<<"seconds."<<endl;
+	// }
 	return 0;
 }
