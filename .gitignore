@@ -1,0 +1,5 @@
+llvmprof.out
+main*bc
+*profile*
+cfg*dot
+

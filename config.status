@@ -607,7 +607,7 @@ S["ENABLE_VISIBILITY_INLINES_HIDDEN"]="1"
 S["OCAML_LIBDIR"]="/usr/local/lib/ocaml"
 S["ALL_BINDINGS"]="ocaml"
 S["BINDINGS_TO_BUILD"]="ocaml "
-S["LLVM_CONFIGTIME"]="Tue Oct 24 18:24:47 EDT 2017"
+S["LLVM_CONFIGTIME"]="Tue Nov 28 21:36:28 EST 2017"
 S["LLVM_MANDIR"]="/usr/local/man"
 S["LLVM_INFODIR"]="/usr/local/info"
 S["LLVM_INCLUDEDIR"]="/usr/local/include"
@@ -703,10 +703,10 @@ S["ENABLE_EXPENSIVE_CHECKS"]=""
 S["ENABLE_WERROR"]="0"
 S["DISABLE_ASSERTIONS"]=""
 S["ENABLE_PROFILING"]=""
-S["ENABLE_OPTIMIZED"]="ENABLE_OPTIMIZED=1"
+S["ENABLE_OPTIMIZED"]=""
 S["ENABLE_CXX11"]="0"
 S["ENABLE_LIBCPP"]="0"
-S["CVSBUILD"]=""
+S["CVSBUILD"]="CVSBUILD=1"
 S["BUILD_CXX"]=""
 S["BUILD_EXEEXT"]=""
 S["BUILD_CC"]=""
@@ -786,7 +786,7 @@ S["DEFS"]="-DPACKAGE_NAME=\\\"\\[MYPASS\\]\\\" -DPACKAGE_TARNAME=\\\"--mypass--\
 "NF_IN_CMATH=1 -DHAVE_STD_ISINF_IN_CMATH=1 -DHAVE_STDLIB_H=1 -DHAVE_UNISTD_H=1 -DHAVE_SYS_PARAM_H=1 -DHAVE_GETPAGESIZE=1 -DHAVE_MMAP=1 -DHAVE_MMAP_FI"\
 "LE=/\\*\\*/ -DLLVM_HAS_ATOMICS=1 -DHAVE___DSO_HANDLE=1 -DLLVM_PREFIX=\\\"/usr/local\\\" -DLLVM_BINDIR=\\\"/usr/local/bin\\\" -DLLVM_LIBDIR=\\\"/usr/local/lib\\\" "\
 "-DLLVM_DATADIR=\\\"/usr/local/share/llvm\\\" -DLLVM_DOCSDIR=\\\"/usr/local/share/doc/llvm\\\" -DLLVM_ETCDIR=\\\"/usr/local/etc/llvm\\\" -DLLVM_INCLUDEDIR=\\\"/usr"\
-"/local/include\\\" -DLLVM_INFODIR=\\\"/usr/local/info\\\" -DLLVM_MANDIR=\\\"/usr/local/man\\\" -DLLVM_CONFIGTIME=\\\"Tue\\ Oct\\ 24\\ 18:24:47\\ EDT\\ 2017\\\" -DLLVM_"\
+"/local/include\\\" -DLLVM_INFODIR=\\\"/usr/local/info\\\" -DLLVM_MANDIR=\\\"/usr/local/man\\\" -DLLVM_CONFIGTIME=\\\"Tue\\ Nov\\ 28\\ 21:36:28\\ EST\\ 2017\\\" -DLLVM_"\
 "DEFAULT_TARGET_TRIPLE=\\\"x86_64-unknown-linux-gnu\\\""
 S["mandir"]="${datarootdir}/man"
 S["localedir"]="${datarootdir}/locale"

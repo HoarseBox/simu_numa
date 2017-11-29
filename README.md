@@ -1,14 +1,7 @@
-I finished Part 1, slicm.
-* first, I hoisted all qualified instructions and used several maps and sets to record infomation.
-* second, based on the information recorded in the first step, for each load instruction, I did:
-** Get Entry Block
-** Alloca flag
-** Split basic block and create redoBB
-** Clone instructions
-** Add flag after store
-* last, I fix SSA issue with two steps:
-** iterated by instruction in redoBB, 
-** find all users of hoisted instruction
+##SIMU NUMA ON ONE NODE MACHINE
+###SETUP
+* put this project under ~
 
-I didn't finish Part 2, intelligent slicm.
-
+###TODO
+* update main.cpp to simulate NUMA environment
+* generate llvm bc and find the corresponding instr with respect to the user code
