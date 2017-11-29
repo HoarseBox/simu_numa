@@ -1,25 +1,40 @@
-##SIMU NUMA ON ONE NODE MACHINE
+## Project: NAME TBD
 
-###SETUP
+### Background
+On NUMA, we find the problem...
+We simulate the problem on non-NUMA machine by...
+We write some testcases...
+After running our LLVM pass(es), the performance improved by...
+
+### Related Works
+
+### Setup
 * put this project under ~
 
-###TODO
-* update main.cpp to simulate NUMA environment
-* generate llvm bc and find the corresponding instr with respect to the user code
+### Assumptions
+1. our testcases starts with two threads
+1. threads are executed in sequence order
 
-Assumption:
-1. two threads
-
+### Algorithm
 Find the pair of thread and data(address):
-1. from thread_create, get thread name
-2. then, we know the global data(address) mentioned in the function are binded to the thread (but we may don't know tid/cpu_id)
-3. use data structure to record the mapping
-4. find intersection of all mapping (use heuristic)
+1. get thread name and function name from thread_create, and create mapping btw them
+1. find the global data(address) mentioned in thread function
+1. use data structure to record the mapping (maybe function_name -> global_addresses)
+1. find intersections of all mappings
+1. If they has any intersection, set those threads to the same core
 
-If they has intersection, set to the same code
-
-Future work
+### Future works
 1. sequence execution
-2. random execution
+1. random execution
+ * use heuristic to find the intersection
+1. complex global data share pattern
 
-* runOnFunction?
+---
+
+## Log
+
+### Problems
+* Which LLVM pass should be used? How many passes should be used?
+* How to identify global data?
+
+### Solved Problems
