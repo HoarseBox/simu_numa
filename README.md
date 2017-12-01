@@ -26,15 +26,17 @@ Find the pair of thread and data(address):
 ### Future works
 1. sequence execution
 1. random execution
- * use heuristic to find the intersection
+** use heuristic to find the intersection
 1. complex global data share pattern
 
----
 
 ## Log
 
 ### Problems
-* Which LLVM pass should be used? How many passes should be used?
+* Find the function call of thread_create, but the 3rd argument(function called by the thread) is a pointer. The pointer cannot be dereferenced in the compile time. How to know which function this pointer is pointing to?
 * How to identify global data?
 
 ### Solved Problems
+* Which LLVM pass should be used? How many passes should be used?
+** Write 3 FunctionPasses: ThreadInfo, GlobalData, ThreadMapping
+** Add ThreadInfo and GlobalData Passes to ThreadMapping as AnalysisUsage

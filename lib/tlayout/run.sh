@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ./compile.sh || exit 1
+./compile.sh || exit 1
 
 TEST=$1
 TESTDIR=~/mypass/test/
@@ -34,6 +34,9 @@ g++ -pthread -std=c++11 -o $TEST.profile $TEST.profile.ls.s /opt/llvm/Release+As
 ./$TEST.profile $2 $3
 echo "[Step 3 done]"
 
+echo "test pass"
+opt -load ~/mypass/Debug+Asserts/lib/tlayout.so -tlayout < $TEST.ls.bc > /dev/null
+
 # echo "Step 4: Getting Lamp profile..."
 # opt -load ~/mypass/Release+Asserts/lib/slicm.so -lamp-insts -insert-lamp-profiling -insert-lamp-loop-profiling -insert-lamp-init < $TEST.ls.bc > $TEST.lamp.bc 
 # llc < $TEST.lamp.bc > $TEST.lamp.s
@@ -59,6 +62,7 @@ echo "[Step 3 done]"
 # g++ -o $TEST.slicm $TEST.slicm.s
 
 ## Generate CFG
-opt -dot-cfg $TEST.bc >& /dev/null
-dot -Tpdf cfg.main.dot -o $TEST.pdf
-rm cfg.main.dot
+# opt -dot-cfg $TEST.bc >& /dev/null
+# dot -Tpdf cfg.main.dot -o $TEST.pdf
+# dot -Tpdf cfg._Z6DoWorkPv.dot -o $TESTDoWork.pdf
+# rm cfg.*.dot
