@@ -31,7 +31,7 @@ void* DoWork(void* args){
 
 
 int main(int argc, char** argv){
-	int coreNum1=0;
+	int coreNum1=2;
 	int coreNum2=1;
 
 	// threads that we want to map	
