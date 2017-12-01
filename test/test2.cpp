@@ -57,6 +57,8 @@ int main(int argc, char** argv){
 	pthread_create(&thread, &attr, DoWork, (void*)&p);
 
 	pthread_join(thread, NULL);
+
+	auto start = chrono::high_resolution_clock::now();
 	
 	pthread_attr_init(&attr);
 	CPU_ZERO(&cpus);
@@ -65,6 +67,10 @@ int main(int argc, char** argv){
 	pthread_create(&thread, &attr, DoWork, (void*)&p);
 
 	pthread_join(thread, NULL);
+		
+	auto end = chrono::high_resolution_clock::now();
+	std::chrono::duration<double> diff = end - start;
+	cout<<"It took me "<<diff.count()<<"seconds."<<endl;
 	
 	return 0;
 }
