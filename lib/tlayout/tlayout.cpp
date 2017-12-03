@@ -19,7 +19,7 @@ namespace {
     bool runOnFunction(Function &F);
 
   private:
-    DenseMap<CallInst*, Argument*> ThreadInfo; //TODO: thread_id -> func_called_by_thread
+    DenseMap<CallInst*, Instruction*> Thread2AffinityMap; // thread_create Inst -> setaffinity Inst
   }; // end of struct Hello
 
   const StringRef Tlayout::FUNCNAME_PTHREAD_CREATE = StringRef("pthread_create");
@@ -35,7 +35,8 @@ static RegisterPass<Tlayout> X("tlayout", "Hello World Pass",
 
 bool Tlayout::runOnFunction(Function &F) {
   if (DEBUG) errs() << "Func Name: ";
-  if (DEBUG) errs().write_escaped(F.getName()) << '\n';
+  if (DEBUG) errs().write_escaped(F.getName());
+  if (DEBUG) errs() << '\t' << &F << '\n';
 
   // Find the CallInst
   for (Function::iterator BB = F.begin(); BB != F.end(); ++BB) {
@@ -58,18 +59,23 @@ bool Tlayout::runOnFunction(Function &F) {
         if (DEBUG) errs().write_escaped(funcName) << '\n';
 
         // Find the function called by a thread
-        unsigned arg_index = 0;
-        for (Function::arg_iterator AI = calledFunc->arg_begin(); AI != calledFunc->arg_end(); ++AI) {
-          if (DEBUG) errs() << "\t\t" << *AI << "\n";
-          if (arg_index == 2) { //3rd argument is the thread function name
-
-            // TODO: the 3rd argument(function called by the thread) is a pointer. 
-            // The pointer cannot be dereferenced in the compile time. 
-            // How to know which function this pointer is pointing to?
-            // What we want is mapping thread_id -> function
-            ThreadInfo[callInst] = AI; // TODO
+        Value *threadAttr = callInst->getArgOperand(1);
+        // StringRef threadFuncName = callInst->getArgOperand(2)->getName();
+        // Value *threadFuncArg = callInst->getArgOperand(3);
+        for (Value::use_iterator UI = threadAttr->use_begin(), E = threadAttr->use_end(); UI != E; ++UI){
+          Instruction* user = dyn_cast<Instruction>(*UI);
+          if (DEBUG) errs() << "\t\t" << *user << '\n';
+          if (user == callInst) {
+            UI++;
+            if (UI == E) {
+              errs() << "ERROR: didn't set affinity before create thread!\n";
+              break; 
+            }
+            Instruction* setAffinityInst = dyn_cast<Instruction>(*UI);
+            Thread2AffinityMap[callInst] = setAffinityInst;
+            if (DEBUG) errs() << "\t\t\t" << *setAffinityInst << '\n';
+            break;
           }
-          arg_index++;
         }
 
       } else if (funcName.equals(FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP)) {
@@ -81,12 +87,12 @@ bool Tlayout::runOnFunction(Function &F) {
     }
   }
 
-  if (DEBUG) {
-    errs() << "ThreadInfo:\n";
-    for (DenseMap<CallInst*, Argument*>::iterator DMI = ThreadInfo.begin(); DMI != ThreadInfo.end(); ++DMI) {
-      errs() << *(DMI->first) << "\t" << *(DMI->second) << "\n";
-    }
-  }
+  // if (DEBUG) {
+  //   errs() << "Thread2AffinityMap:\n";
+  //   for (DenseMap<CallInst*, Instruction*>::iterator DMI = Thread2AffinityMap.begin(); DMI != Thread2AffinityMap.end(); ++DMI) {
+  //     errs() << *(DMI->first) << "\t" << *(DMI->second) << "\n";
+  //   }
+  // }
 
   return false;
 }

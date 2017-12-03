@@ -1,6 +1,6 @@
 #!/bin/bash
 
-./compile.sh || exit 1
+make || exit 1
 
 TEST=$1
 TESTDIR=~/mypass/test/
