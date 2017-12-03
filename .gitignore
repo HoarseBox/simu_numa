@@ -1,5 +1,8 @@
-llvmprof.out
-main*bc
-*profile*
-cfg*dot
-
+/autoconf
+Makefil*
+Debug+Asserts/lib/*
+config.*
+lib/tlayout/Debug+Asserts/*
+test/llvmprof.out
+test/*.bc
+/lib/tlayout/run.sh

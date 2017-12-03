@@ -4,33 +4,36 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/DenseMap.h"
 
+#include <set>
+
+#include "tlayout.h"
+
+
 using namespace llvm;
 
-namespace {
+// namespace {
 
-  struct Tlayout : public FunctionPass {
-    static const bool DEBUG = true;
-    static const StringRef FUNCNAME_PTHREAD_CREATE;
-    static const StringRef FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP;
+//   struct Tlayout : public FunctionPass {
+//     static const bool DEBUG = true;
+//     static const StringRef FUNCNAME_PTHREAD_CREATE;
+//     static const StringRef FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP;
 
-    static char ID;
-    Tlayout() : FunctionPass(ID) {}
+//     static char ID;
+//     Tlayout() : FunctionPass(ID) {}
 
-    bool runOnFunction(Function &F);
+//     bool runOnFunction(Function &F);
 
-  private:
-    DenseMap<CallInst*, Instruction*> Thread2AffinityMap; // thread_create Inst -> setaffinity Inst
-  }; // end of struct Hello
+//     DenseMap<CallInst*, Instruction*> Thread2AffinityMap; // thread_create Inst -> setaffinity Inst
+//     std::set<StringRef> ThreadFuncNameSet;
+//   }; // end of struct Hello
 
-  const StringRef Tlayout::FUNCNAME_PTHREAD_CREATE = StringRef("pthread_create");
-  const StringRef Tlayout::FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP = StringRef("pthread_attr_setaffinity_np");
+const StringRef Tlayout::FUNCNAME_PTHREAD_CREATE = StringRef("pthread_create");
+const StringRef Tlayout::FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP = StringRef("pthread_attr_setaffinity_np");
 
-}  // end of anonymous namespace
+// }  // end of anonymous namespace
 
 char Tlayout::ID = 0;
-static RegisterPass<Tlayout> X("tlayout", "Hello World Pass",
-                              false /* Only looks at CFG */,
-                              false /* Analysis Pass */);
+static RegisterPass<Tlayout> X("tlayout", "Hello World Pass");
 
 
 bool Tlayout::runOnFunction(Function &F) {
@@ -60,8 +63,6 @@ bool Tlayout::runOnFunction(Function &F) {
 
         // Find the function called by a thread
         Value *threadAttr = callInst->getArgOperand(1);
-        // StringRef threadFuncName = callInst->getArgOperand(2)->getName();
-        // Value *threadFuncArg = callInst->getArgOperand(3);
         for (Value::use_iterator UI = threadAttr->use_begin(), E = threadAttr->use_end(); UI != E; ++UI){
           Instruction* user = dyn_cast<Instruction>(*UI);
           if (DEBUG) errs() << "\t\t" << *user << '\n';
@@ -77,6 +78,10 @@ bool Tlayout::runOnFunction(Function &F) {
             break;
           }
         }
+
+        StringRef threadFuncName = callInst->getArgOperand(2)->getName();
+        ThreadFuncNameSet.insert(threadFuncName);
+
 
       } else if (funcName.equals(FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP)) {
         if (DEBUG) errs() << "\t";
