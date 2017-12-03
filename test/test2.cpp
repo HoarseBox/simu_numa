@@ -13,6 +13,12 @@
 #include <ratio>
 using namespace std;
  
+struct tidAndAddr{
+	int ID;
+	int* addr1;
+};
+
+
 
 void* DoWork(void* args){
 	// access data according the core number
@@ -29,12 +35,6 @@ void* DoWork(void* args){
 int main(int argc, char** argv){
 	int coreNum1=2;
 	int coreNum2=1;
-
-	struct tidAndAddr{
-		int ID;
-		int* addr1;
-	};
-
 
 	// threads that we want to map	
 	pthread_t thread;
