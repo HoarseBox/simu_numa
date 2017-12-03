@@ -1,8 +1,10 @@
-/autoconf
+autoconf/
 Makefil*
 Debug+Asserts/lib/*
 config.*
 lib/tlayout/Debug+Asserts/*
 test/llvmprof.out
 test/*.bc
-/lib/tlayout/run.sh
+test/*profile*
+test/*.pdf
+lib/tlayout/run.sh
