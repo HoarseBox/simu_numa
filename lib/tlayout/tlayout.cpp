@@ -29,6 +29,8 @@ namespace {
 
     DenseMap<Instruction*, std::set<Instruction*> > ThreadGlobalDataMap;
 
+    DenseMap<Instruction*, std::set<CallInst*> > Data2Threads;
+
 
     void createThreadInfoRecord(Module &M, const bool DEBUG = false);
     void createGlobalDataRecord(Module &M, const bool DEBUG = false);
@@ -127,7 +129,7 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
   } // end for Function
 
 }
-
+/*
 void Tlayout::dfsRootAncestor(Instruction* threadInst, Instruction* child, const bool DEBUG){
   if (!child){
     return;
@@ -141,6 +143,7 @@ void Tlayout::dfsRootAncestor(Instruction* threadInst, Instruction* child, const
     dfsRootAncestor(threadInst, dyn_cast<Instruction>(child->getOperand(i)), DEBUG);
   }
 }
+*/
 
 void Tlayout::createGlobalDataRecord(Module &M, const bool DEBUG) {
 
@@ -154,7 +157,13 @@ void Tlayout::createGlobalDataRecord(Module &M, const bool DEBUG) {
     errs() << threadFunc->getName() << '\n';
 
     Value *arg = threadCreateInst->getArgOperand(3);
-    errs() << *arg << '\n';
+    errs() << arg << '\n';
+    Instruction* argInst = dyn_cast<Instruction>(arg);
+    errs() << "argInst\t\t" << *argInst << '\n';
+
+    Instruction* originalData = dyn_cast<Instruction>(argInst->getOperand(0));
+    Data2Threads[originalData].insert(threadCreateInst);
+
 
     //find ancestor 
     /*
@@ -164,14 +173,14 @@ void Tlayout::createGlobalDataRecord(Module &M, const bool DEBUG) {
       errs() << '\t' << *operand << '\n';
     }
     */
-    dfsRootAncestor(threadCreateInst, dyn_cast<Instruction>(arg), DEBUG);
+    //dfsRootAncestor(threadCreateInst, dyn_cast<Instruction>(arg), DEBUG);
     /*
     for (size_t i = 0; i != ThreadGlobalDataMap[threadCreateInst].size(); ++i){
       errs() <<'\t'<< *(ThreadGlobalDataMap[threadCreateInst] + i) << '\n';
     }
     */
     errs() << "~~~~~~~ size  " << ThreadGlobalDataMap[threadCreateInst].size() << '\n';
-    
+
     for (std::set<Instruction*>::iterator SI = ThreadGlobalDataMap[threadCreateInst].begin(); SI != ThreadGlobalDataMap[threadCreateInst].end(); ++SI){
       errs() <<"\t\t"<< *SI << '\n';
     }
