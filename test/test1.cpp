@@ -50,7 +50,8 @@ int main(int argc, char** argv){
 	// create a bunch of threads randomly distributed them on different cores.
 	struct tidAndAddr p[NumThreads];
 
-	int* tmp1, tmp2;
+	int* tmp1; 
+	int* tmp2;
 	tmp1 = new int[100000];
 	tmp2 = new int[100000];
 
