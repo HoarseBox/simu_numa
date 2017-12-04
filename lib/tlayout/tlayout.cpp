@@ -1,4 +1,5 @@
 #include "llvm/Pass.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Instructions.h"
@@ -7,15 +8,13 @@
 
 #include <set>
 
-#include "tlayout.h"
-
 
 using namespace llvm;
 
 namespace {
 
   struct Tlayout : public ModulePass {
-    static const bool DEBUG = true;
+
     static const StringRef FUNCNAME_PTHREAD_CREATE;
     static const StringRef FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP;
 
@@ -26,12 +25,15 @@ namespace {
 
   private:
     DenseMap<CallInst*, Instruction*> Thread2AffinityMap; // thread_create Inst -> setaffinity Inst
-    std::set<StringRef> ThreadFuncNameSet;
+    // std::set<StringRef> ThreadFuncNameSet;
 
-    void createThreadInfoRecord(Module &M);
-    void createGlobalDataRecord();
-    void findDataOverlapping();
-    void optimizeThreadLocation();
+    DenseMap<Instruction*, std::set<Instruction*> > ThreadGlobalDataMap;
+
+
+    void createThreadInfoRecord(Module &M, const bool DEBUG = false);
+    void createGlobalDataRecord(Module &M, const bool DEBUG = false);
+    void findDataOverlapping(const bool DEBUG = false);
+    void optimizeThreadLocation(const bool DEBUG = false);
   }; // end of struct Hello
 
 const StringRef Tlayout::FUNCNAME_PTHREAD_CREATE = StringRef("pthread_create");
@@ -51,7 +53,7 @@ bool Tlayout::runOnModule(Module &M) {
 
   /* TODO: explain the function
    */
-  createGlobalDataRecord();
+  createGlobalDataRecord(M, true);
 
   /* TODO: explain the function
   */
@@ -64,7 +66,7 @@ bool Tlayout::runOnModule(Module &M) {
   return false;
 }
 
-void Tlayout::createThreadInfoRecord(Module &M) {
+void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
 
   for (Module::iterator F = M.begin(); F != M.end(); ++F) {
     if (DEBUG) errs() << "Func Name: " << F->getName() << '\n';
@@ -108,8 +110,8 @@ void Tlayout::createThreadInfoRecord(Module &M) {
             }
           }
 
-          StringRef threadFuncName = callInst->getArgOperand(2)->getName();
-          ThreadFuncNameSet.insert(threadFuncName);
+          // StringRef threadFuncName = callInst->getArgOperand(2)->getName();
+          // ThreadFuncNameSet.insert(threadFuncName);
 
 
         } else if (funcName.equals(FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP)) {
@@ -124,20 +126,39 @@ void Tlayout::createThreadInfoRecord(Module &M) {
 
 }
 
-void Tlayout::createGlobalDataRecord() {
+void Tlayout::createGlobalDataRecord(Module &M, const bool DEBUG) {
 
-  for (std::set<StringRef>::iterator SI = ThreadFuncNameSet.begin(); SI != ThreadFuncNameSet.end(); ++SI) {
-    errs() << *SI << '\n';
+  for (DenseMap<CallInst*, Instruction*>::iterator MI = Thread2AffinityMap.begin();
+      MI != Thread2AffinityMap.end(); ++MI) {
+
+    CallInst *threadCreateInst = MI->first;
+    errs() << *threadCreateInst << '\n';
+    StringRef funcName = threadCreateInst->getArgOperand(2)->getName();
+    Function *threadFunc = M.getFunction(funcName);
+    errs() << threadFunc->getName() << '\n';
+
+    Value *arg = threadCreateInst->getArgOperand(3);
+    errs() << *arg << '\n';
+
+    //find ancestor 
+    Instruction *argInst = dyn_cast<Instruction>(arg);
+    for (unsigned i = 0; i < argInst->getNumOperands(); ++i) {
+      Value *operand = argInst->getOperand(i);
+      errs() << '\t' << *operand << '\n';
+    }
+
   }
+
+
 
 }
 
 
-void Tlayout::findDataOverlapping() {
+void Tlayout::findDataOverlapping(const bool DEBUG) {
   return;
 }
 
-void Tlayout::optimizeThreadLocation() {
+void Tlayout::optimizeThreadLocation(const bool DEBUG) {
   return;
 }
 
