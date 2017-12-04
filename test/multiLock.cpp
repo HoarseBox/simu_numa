@@ -18,7 +18,8 @@ struct tidAndAddr{
 	int* addr2;
 };
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex2 = PTHREAD_MUTEX_INITIALIZER;
 
 void* DoWork(void* args){
 	// access data according the core number
@@ -26,11 +27,23 @@ void* DoWork(void* args){
 	int TID = p->ID;
 	int* addr1 = p->addr1;
 	int* addr2 = p->addr2;
-	for (int i=0; i<10000; i++){
-		pthread_mutex_lock(&mutex);
-		addr1[rand()%65535] = addr1[rand()%65535]+1;
-		pthread_mutex_unlock(&mutex);
+
+	if (TID>500){
+		for (int i=0; i<10000; i++){
+			pthread_mutex_lock(&mutex1);
+			addr1[rand()%65535] = addr1[rand()%65535]+1;
+			pthread_mutex_unlock(&mutex1);
+		}
 	}
+	else{
+		for (int i=0; i<10000; i++){
+			pthread_mutex_lock(&mutex2);
+			addr2[rand()%65535] = addr2[rand()%65535]+1;
+			pthread_mutex_unlock(&mutex2);
+		}
+	}
+	
+
 	return 0;
 }
 
@@ -65,7 +78,10 @@ int main(int argc, char** argv){
 		p[i].addr2 = tmp2;
 		p[i].ID = i;
 	}
-
+	
+	// in the first scenario, the thread 1,3,5,7,9... 
+	// are put on one node
+	// thread 2,4,6,8,10 are put on another core
 	auto start = chrono::high_resolution_clock::now();
 	
 	for (int i=0; i<NumThreads; i++){
@@ -95,24 +111,34 @@ int main(int argc, char** argv){
 	std::chrono::duration<double> diff = end - start;
 	cout<<"It took me "<<diff.count()<<"seconds."<<endl;
 
-
-//	auto start = chrono::high_resolution_clock::now();
-//	for (int i=0; i<NumThreads; i++){
-//		pthread_attr_init(&attr);
-//		CPU_ZERO(&cpus);
-//		CPU_SET(i+7, &cpus);
-//		int threadNum = i;
-//		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-//		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
-//	}
-
-//	for (int i=0; i<NumThreads; i++){
-//		pthread_join(threads[i], NULL);
-//	}
+	start = chrono::high_resolution_clock::now();
 	
-//	auto end = chrono::high_resolution_clock::now();
-//	std::chrono::duration<double> diff = end - start;
-//	cout<<"It took me "<<diff.count()<<"seconds."<<endl;
+	for (int i=0; i<NumThreads; i++){
+		pthread_attr_init(&attr);
+		CPU_ZERO(&cpus);
+		CPU_SET(i, &cpus);
+		int threadNum = i;
+		if (i<500){
+			pthread_attr_init(&attr);
+			CPU_ZERO(&cpus);
+			CPU_SET(i%8, &cpus);
+		}
+		else{
+			pthread_attr_init(&attr);
+			CPU_ZERO(&cpus);
+			CPU_SET(i%8+8, &cpus);
+		}
+		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
+
+	}
+	for (int i=0; i<NumThreads; i++){
+		pthread_join(threads[i], NULL);
+	}
+
+	end = chrono::high_resolution_clock::now();
+	diff = end - start;
+	cout<<"It took me "<<diff.count()<<"seconds."<<endl;
 
 	return 0;
 }
