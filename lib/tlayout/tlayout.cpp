@@ -82,7 +82,45 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
 //	errs()<<*BB<<"\n";
 
       for (BasicBlock::iterator II = BB->begin(); II != BB->end(); ++II) {
-        
+	// Find the CallInst
+       	Instruction &I = *II;
+        if (!isa<CallInst>(I)) {
+          continue;
+        }
+	CallInst *callInst = dyn_cast<CallInst>(&I);
+        Function *calledFunc = callInst->getCalledFunction();
+        if (!calledFunc) {
+          errs() << "\tWARN: Indirect function call.\n";
+          continue;
+        }
+
+	// find the pthread create function and 
+	// get the function name so we can know which 
+	// is the "DoWork" function called by pthread
+	StringRef funcName = calledFunc->getName();
+	if (funcName.equals(FUNCNAME_PTHREAD_CREATE)) {
+	  errs().write_escaped(funcName)<<'\n';
+	
+	  //find the function created by pthread
+	  errs()<<"~~~~~~~--------~~~~~~~"<<"\n";
+	  Value *createFunc = callInst->getArgOperand(2);
+       	  errs()<<*createFunc<<"\n";
+	
+	  Function* calledFunc = dyn_cast<Function> (createFunc);
+	 
+	  // iterate through the function to find the lock and unlock pair
+	 for (Function::iterator FI = calledFunc->begin(); FI!=calledFunc->end(); FI++){
+           for (BasicBlock::iterator BI = FI->begin(); BI!=FI->end(); BI++){
+	     // find the lock and unlock function
+	     
+	   }	   
+	 } 
+	  
+
+	  //function
+	  //for ()
+	}
+
  /*       // Find the CallInst
         Instruction &I = *II;
         if (!isa<CallInst>(I)) {
