@@ -34,6 +34,8 @@ namespace {
     void createGlobalDataRecord(Module &M, const bool DEBUG = false);
     void findDataOverlapping(const bool DEBUG = false);
     void optimizeThreadLocation(const bool DEBUG = false);
+
+    void dfsRootAncestor(Instruction* threadInst, Instruction* child, const bool DEBUG = false);
   }; // end of struct Hello
 
 const StringRef Tlayout::FUNCNAME_PTHREAD_CREATE = StringRef("pthread_create");
@@ -126,10 +128,24 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
 
 }
 
+void Tlayout::dfsRootAncestor(Instruction* threadInst, Instruction* child, const bool DEBUG){
+  if (!child){
+    return;
+  }
+
+  if (isa<AllocaInst>(child) && !child->getNumOperands()){
+    ThreadGlobalDataMap[threadInst].insert(child);
+  }
+
+  for (unsigned i = 0; i != child->getNumOperands(); ++i){
+    dfsRootAncestor(threadInst, dyn_cast<Instruction>(child->getOperand(i)), DEBUG);
+  }
+}
+
 void Tlayout::createGlobalDataRecord(Module &M, const bool DEBUG) {
 
   for (DenseMap<CallInst*, Instruction*>::iterator MI = Thread2AffinityMap.begin();
-      MI != Thread2AffinityMap.end(); ++MI) {
+    MI != Thread2AffinityMap.end(); ++MI) {
 
     CallInst *threadCreateInst = MI->first;
     errs() << *threadCreateInst << '\n';
@@ -141,12 +157,24 @@ void Tlayout::createGlobalDataRecord(Module &M, const bool DEBUG) {
     errs() << *arg << '\n';
 
     //find ancestor 
+    /*
     Instruction *argInst = dyn_cast<Instruction>(arg);
     for (unsigned i = 0; i < argInst->getNumOperands(); ++i) {
       Value *operand = argInst->getOperand(i);
       errs() << '\t' << *operand << '\n';
     }
-
+    */
+    dfsRootAncestor(threadCreateInst, dyn_cast<Instruction>(arg), DEBUG);
+    /*
+    for (size_t i = 0; i != ThreadGlobalDataMap[threadCreateInst].size(); ++i){
+      errs() <<'\t'<< *(ThreadGlobalDataMap[threadCreateInst] + i) << '\n';
+    }
+    */
+    errs() << "~~~~~~~ size  " << ThreadGlobalDataMap[threadCreateInst].size() << '\n';
+    
+    for (std::set<Instruction*>::iterator SI = ThreadGlobalDataMap[threadCreateInst].begin(); SI != ThreadGlobalDataMap[threadCreateInst].end(); ++SI){
+      errs() <<"\t\t"<< *SI << '\n';
+    }
   }
 
 
