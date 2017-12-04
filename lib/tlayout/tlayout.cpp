@@ -102,17 +102,30 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
 	  errs().write_escaped(funcName)<<'\n';
 	
 	  //find the function created by pthread
-	  errs()<<"~~~~~~~--------~~~~~~~"<<"\n";
 	  Value *createFunc = callInst->getArgOperand(2);
-       	  errs()<<*createFunc<<"\n";
+       	 // errs()<<*createFunc<<"\n";
 	
 	  Function* calledFunc = dyn_cast<Function> (createFunc);
 	 
 	  // iterate through the function to find the lock and unlock pair
 	 for (Function::iterator FI = calledFunc->begin(); FI!=calledFunc->end(); FI++){
            for (BasicBlock::iterator BI = FI->begin(); BI!=FI->end(); BI++){
-	     // find the lock and unlock function
-	     
+	     // find the lock and unlock instruction
+	     Instruction& Inst = *BI;
+	     errs()<<Inst<<"\n";
+	     if (!isa<CallInst>(&Inst)) continue;
+	     errs()<<"~~~~~~repeat call function inst: "<<Inst<<"\n";
+	     CallInst *lockInst = dyn_cast<CallInst>(&Inst);
+	     Function *lockFunc = lockInst->getCalledFunction();
+	     if (!lockFunc){
+		errs()<<"\tWARN: Indirect function call.\n";
+		continue;
+	     }
+	     StringRef lockFuncName = lockFunc->getName();
+	     if (lockFuncName.equals(FUNCNAME_PTHREAD_MUTEX_LOCK)){
+		errs()<<"###########pthread mutex############\n";
+	     }
+	
 	   }	   
 	 } 
 	  
