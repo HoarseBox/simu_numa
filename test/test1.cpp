@@ -43,7 +43,7 @@ int main(int argc, char** argv){
 	int coreNum2=1;
 
 	// threads that we want to map	
-	int NumThreads = 4;
+	int NumThreads = 2;
 	pthread_t threads[NumThreads];
 	pthread_attr_t attr;
 	cpu_set_t cpus;
@@ -74,29 +74,29 @@ int main(int argc, char** argv){
 		CPU_ZERO(&cpus);
 		CPU_SET(i, &cpus);
 		int threadNum = i;
-		int success = pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
 		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
 	}
 	for (int i=0; i<NumThreads; i++){
 		pthread_join(threads[i], NULL);
 	}
-//	auto start = chrono::high_resolution_clock::now();
-//	for (int i=0; i<NumThreads; i++){
-//		pthread_attr_init(&attr);
-//		CPU_ZERO(&cpus);
-//		CPU_SET(coreNum2, &cpus);
-//		int threadNum = i;
-//		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-//		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
-//	}
+	auto start = chrono::high_resolution_clock::now();
+	for (int i=0; i<NumThreads; i++){
+		pthread_attr_init(&attr);
+		CPU_ZERO(&cpus);
+		CPU_SET(i+7, &cpus);
+		int threadNum = i;
+		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
+	}
 
-//	for (int i=0; i<NumThreads; i++){
-//		pthread_join(threads[i], NULL);
-//	}
+	for (int i=0; i<NumThreads; i++){
+		pthread_join(threads[i], NULL);
+	}
 	
-//	auto end = chrono::high_resolution_clock::now();
-//	std::chrono::duration<double> diff = end - start;
-//	cout<<"It took me "<<diff.count()<<"seconds."<<endl;
+	auto end = chrono::high_resolution_clock::now();
+	std::chrono::duration<double> diff = end - start;
+	cout<<"It took me "<<diff.count()<<"seconds."<<endl;
 
 	return 0;
 }
