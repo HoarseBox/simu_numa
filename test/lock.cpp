@@ -18,21 +18,18 @@ struct tidAndAddr{
 	int* addr2;
 };
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 void* DoWork(void* args){
 	// access data according the core number
 	struct tidAndAddr* p = (struct tidAndAddr*)args;
 	int TID = p->ID;
 	int* addr1 = p->addr1;
 	int* addr2 = p->addr2;
-	if (TID%2==0){
-		for (int i=0; i<10000; i++){
-			addr1[rand()%65535] = addr1[rand()%65535]+1;
-		}
-	}
-	else{
-		for (int i=0; i<10000; i++){
-			addr2[rand()%65535] = addr2[rand()%65535]+1;
-		}
+	for (int i=0; i<10000; i++){
+		pthread_mutex_lock(&mutex);
+		addr1[rand()%65535] = addr1[rand()%65535]+1;
+		pthread_mutex_unlock(&mutex);
 	}
 	return 0;
 }
@@ -80,23 +77,23 @@ int main(int argc, char** argv){
 	for (int i=0; i<NumThreads; i++){
 		pthread_join(threads[i], NULL);
 	}
-	auto start = chrono::high_resolution_clock::now();
-	for (int i=0; i<NumThreads; i++){
-		pthread_attr_init(&attr);
-		CPU_ZERO(&cpus);
-		CPU_SET(i+7, &cpus);
-		int threadNum = i;
-		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
-	}
+//	auto start = chrono::high_resolution_clock::now();
+//	for (int i=0; i<NumThreads; i++){
+//		pthread_attr_init(&attr);
+//		CPU_ZERO(&cpus);
+//		CPU_SET(i+7, &cpus);
+//		int threadNum = i;
+//		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+//		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
+//	}
 
-	for (int i=0; i<NumThreads; i++){
-		pthread_join(threads[i], NULL);
-	}
+//	for (int i=0; i<NumThreads; i++){
+//		pthread_join(threads[i], NULL);
+//	}
 	
-	auto end = chrono::high_resolution_clock::now();
-	std::chrono::duration<double> diff = end - start;
-	cout<<"It took me "<<diff.count()<<"seconds."<<endl;
+//	auto end = chrono::high_resolution_clock::now();
+//	std::chrono::duration<double> diff = end - start;
+//	cout<<"It took me "<<diff.count()<<"seconds."<<endl;
 
 	return 0;
 }
