@@ -17,6 +17,8 @@ namespace {
 
     static const StringRef FUNCNAME_PTHREAD_CREATE;
     static const StringRef FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP;
+    static const StringRef FUNCNAME_PTHREAD_MUTEX_LOCK;
+    static const StringRef FUNCNAME_PTHREAD_MUTEX_UNLOCK;
 
     static char ID;
     Tlayout() : ModulePass(ID) {}
@@ -42,7 +44,8 @@ namespace {
 
 const StringRef Tlayout::FUNCNAME_PTHREAD_CREATE = StringRef("pthread_create");
 const StringRef Tlayout::FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP = StringRef("pthread_attr_setaffinity_np");
-
+const StringRef Tlayout::FUNCNAME_PTHREAD_MUTEX_LOCK = StringRef("pthread_mutex_lock");
+const StringRef Tlayout::FUNCNAME_PTHREAD_MUTEX_UNLOCK = StringRef("pthread_mutex_unlock");
 }  // end of anonymous namespace
 
 char Tlayout::ID = 0;
@@ -73,12 +76,14 @@ bool Tlayout::runOnModule(Module &M) {
 void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
 
   for (Module::iterator F = M.begin(); F != M.end(); ++F) {
-    if (DEBUG) errs() << "Func Name: " << F->getName() << '\n';
+    errs() << "~~~~~~~~~~~~~~~~Func Name: " << F->getName() << '\n';
     
     for (Function::iterator BB = F->begin(); BB != F->end(); ++BB) {
+//	errs()<<*BB<<"\n";
+
       for (BasicBlock::iterator II = BB->begin(); II != BB->end(); ++II) {
         
-        // Find the CallInst
+ /*       // Find the CallInst
         Instruction &I = *II;
         if (!isa<CallInst>(I)) {
           continue;
@@ -123,9 +128,13 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
           if (DEBUG) errs().write_escaped(funcName) << '\n';
 
         }
-        
+*/        
       } //end for Instr
+
+
     } // end for BB
+
+
   } // end for Function
 
 }
