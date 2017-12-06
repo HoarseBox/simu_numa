@@ -35,7 +35,8 @@ g++ -pthread -std=c++11 -o $TEST.profile $TEST.profile.ls.s /opt/llvm/Release+As
 echo "[Step 3 done]"
 
 echo "test pass"
-opt -load ~/mypass/Debug+Asserts/lib/tlayout.so -tlayout < $TEST.ls.bc > /dev/null
+# opt -load ~/mypass/Debug+Asserts/lib/tlayout.so -tlayout < $TEST.ls.bc > /dev/null
+opt -load ~/mypass/Debug+Asserts/lib/tlayout.so -tlayout < $TEST.ls.bc > $TEST.tlayout.bc
 
 # echo "Step 4: Getting Lamp profile..."
 # opt -load ~/mypass/Release+Asserts/lib/slicm.so -lamp-insts -insert-lamp-profiling -insert-lamp-loop-profiling -insert-lamp-init < $TEST.ls.bc > $TEST.lamp.bc 
@@ -56,13 +57,13 @@ opt -load ~/mypass/Debug+Asserts/lib/tlayout.so -tlayout < $TEST.ls.bc > /dev/nu
 # opt -basicaa -load ~/mypass/Release+Asserts/lib/slicm.so -lamp-inst-cnt -lamp-map-loop -lamp-load-profile -profile-loader -profile-info-file=llvmprof.out -slicm -mem2reg < $TEST.ls.bc > $TEST.slicm.bc
 
 ## Generate executables and ensure that your modified IR generates correct output
-# llc $TEST.bc -o $TEST.s
-# g++ -o $TEST $TEST.s
-# llc $TEST.slicm.bc -o $TEST.slicm.s
-# g++ -o $TEST.slicm $TEST.slicm.s
+llc $TEST.bc -o $TEST.s
+g++ -pthread -std=c++11 -o $TEST $TEST.s
+llc $TEST.tlayout.bc -o $TEST.tlayout.s
+g++ -pthread -std=c++11 -o $TEST.tlayout $TEST.tlayout.s
 
-## Generate CFG
-# opt -dot-cfg $TEST.bc >& /dev/null
-# dot -Tpdf cfg.main.dot -o $TEST.pdf
+# Generate CFG
+opt -dot-cfg $TEST.tlayout.bc >& /dev/null
+dot -Tpdf cfg.main.dot -o $TEST.tlayout.pdf
 # dot -Tpdf cfg._Z6DoWorkPv.dot -o $TESTDoWork.pdf
-# rm cfg.*.dot
+rm cfg.*.dot

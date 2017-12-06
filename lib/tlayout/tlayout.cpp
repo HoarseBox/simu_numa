@@ -43,7 +43,8 @@ namespace {
     void findDataOverlapping(const bool DEBUG = false);
     bool optimizeThreadLocation(const bool DEBUG = false);
 
-    void dfsRootAncestor(Instruction* threadInst, Instruction* child, const bool DEBUG = false);
+    // void dfsRootAncestor(Instruction* threadInst, Instruction* child, const bool DEBUG = false);
+
   }; // end of struct Hello
 
 const StringRef Tlayout::FUNCNAME_PTHREAD_CREATE = StringRef("pthread_create");
@@ -53,7 +54,7 @@ const unsigned int Tlayout::NUM_CORES = 8;
 }  // end of anonymous namespace
 
 char Tlayout::ID = 0;
-static RegisterPass<Tlayout> X("tlayout", "Hello World Pass");
+static RegisterPass<Tlayout> X("tlayout", "Optimize Thread Layout on Multicore");
 
 
 bool Tlayout::runOnModule(Module &M) {
@@ -66,7 +67,7 @@ bool Tlayout::runOnModule(Module &M) {
 
   /* TODO: explain the function
    */
-  createGlobalDataRecord(M);
+  createGlobalDataRecord(M, true);
 
   /* TODO: explain the function
   */
@@ -80,6 +81,7 @@ bool Tlayout::runOnModule(Module &M) {
 }
 
 void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
+  if (DEBUG) errs() << "----------------createThreadInfoRecord--------------\n";
 
   for (Module::iterator F = M.begin(); F != M.end(); ++F) {
     if (DEBUG) errs() << "Func Name: " << F->getName() << '\n';
@@ -87,7 +89,7 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
     for (Function::iterator BB = F->begin(); BB != F->end(); ++BB) {
       for (BasicBlock::iterator II = BB->begin(); II != BB->end(); ++II) {
         
-        // Find the CallInst
+        // Find the function called by CallInst
         Instruction &I = *II;
         if (!isa<CallInst>(I)) {
           continue;
@@ -102,8 +104,7 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
         // Find function call of pthread_create and pthread_attr_setaffinity_np
         StringRef funcName = calledFunc->getName();
         if (funcName.equals(FUNCNAME_PTHREAD_CREATE)) {
-          if (DEBUG) errs() << "\t";
-          if (DEBUG) errs().write_escaped(funcName) << '\n';
+          if (DEBUG) errs() << "\t" << funcName << '\n';
 
           // Find the function called by a thread
           Value *threadAttr = callInst->getArgOperand(1);
@@ -116,12 +117,13 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
                 errs() << "ERROR: didn't set affinity before create thread!\n";
                 break; 
               }
-              //errs() << "\t\t"<< dyn_cast<Value>(*UI)->getArgOperand(2) << '\n';
 
               // Instruction* setAffinityInst = dyn_cast<Instruction>(*UI);
               CallInst* setAffinityInst = dyn_cast<CallInst>(*UI);
-              if (DEBUG) errs() << "\t\t"<< *(setAffinityInst->getArgOperand(2)) << '\n';
-              //BasicBlock* pBB = setAffinityInst->getParent();
+              if (DEBUG) errs() << "\t\t\t" << *setAffinityInst << '\n';
+              Thread2AffinityMap[callInst] = setAffinityInst;
+
+              // Find the BB where the core affinity is set
               LLVMBasicBlockRef currentBBRef = wrap(setAffinityInst->getParent());
               LLVMBasicBlockRef setCoreBBRef;
               for (int i = 0; i < 3; ++i){
@@ -132,40 +134,18 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
               for (BasicBlock::iterator I = setCoreBB->begin(); I != setCoreBB->end(); ++I){
                 Instruction* temp = dyn_cast<Instruction>(I);
                 if (I && isa<StoreInst>(temp)){
-                  //errs() << *I << '\n';
-                  //errs() << I->getNumOperands() << '\n';
+                  if (DEBUG) errs() << *temp << '\n';
                   Thread2CPUSetInstMap[callInst] = temp;
                 }
               }
-              //errs() << *(unwrap(setCoreBBRef)) << '\n';
-              /*
-              errs() << *pBB << '\n';
-              LLVMBasicBlockRef previousBBRef = LLVMGetPreviousBasicBlock(wrap(pBB));
-              errs() << *(unwrap(previousBBRef)) << '\n';
-              LLVMBasicBlockRef ppBBRef = LLVMGetPreviousBasicBlock(previousBBRef);
-              errs() << *(unwrap(ppBBRef)) << '\n';
-              LLVMBasicBlockRef pppBBRef = LLVMGetPreviousBasicBlock(ppBBRef);
-              errs() << *(unwrap(pppBBRef)) << '\n';
-              */
-              //Instruction* setCPUInst = dyn_cast<Instruction>(setAffinityInst->getArgOperand(2));
-              //errs() << "\t\tset CPU operand "<< *(setCPUInst->getOperand(0)) << '\n';
 
-              Thread2AffinityMap[callInst] = setAffinityInst;
-              
-              //Thread2CPUMap[callInst] = 
-              if (DEBUG) errs() << "\t\t\t" << *setAffinityInst << '\n';
               break;
             }
           }
 
-          // StringRef threadFuncName = callInst->getArgOperand(2)->getName();
-          // ThreadFuncNameSet.insert(threadFuncName);
-
-
         } else if (funcName.equals(FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP)) {
           if (DEBUG) errs() << "\t";
           if (DEBUG) errs().write_escaped(funcName) << '\n';
-
         }
         
       } //end for Instr
@@ -190,6 +170,8 @@ void Tlayout::dfsRootAncestor(Instruction* threadInst, Instruction* child, const
 */
 
 void Tlayout::createGlobalDataRecord(Module &M, const bool DEBUG) {
+  if (DEBUG) errs() << "----------------createGlobalDataRecord--------------\n";
+
   // TODO: serialized threads
 
 
@@ -202,23 +184,19 @@ void Tlayout::createGlobalDataRecord(Module &M, const bool DEBUG) {
 
     CallInst *threadCreateInst = MI->first;
     if (DEBUG) errs() << *threadCreateInst << '\n';
+    
     StringRef funcName = threadCreateInst->getArgOperand(2)->getName();
     Function *threadFunc = M.getFunction(funcName);
-    if (DEBUG) errs() << threadFunc->getName() << '\n';
+    if (DEBUG) errs() << "Func Name:\t" << threadFunc->getName() << '\n';
 
     Value *arg = threadCreateInst->getArgOperand(3);
-    if (DEBUG) errs() << arg << '\n';
     Instruction* argInst = dyn_cast<Instruction>(arg);
-    /*
-    errs() << "argInst\t\t" << *argInst << '\n';
-
+    if (DEBUG) errs() << "Func arg:\t" << *argInst << '\n';
+    
     Instruction* originalData = dyn_cast<Instruction>(argInst->getOperand(0));
+    if (DEBUG) errs() << "before cast:\t" << *originalData << '\n';
+    
     Data2Threads[originalData].insert(threadCreateInst);
-    */
-
-
-
-
 
     //find ancestor 
     /*
@@ -234,26 +212,37 @@ void Tlayout::createGlobalDataRecord(Module &M, const bool DEBUG) {
       errs() <<'\t'<< *(ThreadGlobalDataMap[threadCreateInst] + i) << '\n';
     }
     */
-    if (DEBUG) errs() << "~~~~~~~ size  " << ThreadGlobalDataMap[threadCreateInst].size() << '\n';
-
-    for (std::set<Instruction*>::iterator SI = ThreadGlobalDataMap[threadCreateInst].begin(); SI != ThreadGlobalDataMap[threadCreateInst].end(); ++SI){
-      if (DEBUG) errs() <<"\t\t"<< *SI << '\n';
-    }
   }
 
-
+  if (DEBUG) {
+    errs() << "\nData2Threads.size = " << Data2Threads.size() << '\n';
+    for (DenseMap<Instruction*, std::set<CallInst*> >::iterator MI = Data2Threads.begin(); 
+      MI != Data2Threads.end(); ++MI) {
+      errs() <<"For global data ["<< *(MI->first) << "] used by thread(s):\n";
+      std::set<CallInst*> &tempSet = MI->second;
+      for (std::set<CallInst*>::iterator SI = tempSet.begin(); SI != tempSet.end(); ++SI) {
+        errs() << '\t' << **SI << '\n';
+      }
+    }
+  }
 
 }
 
 
 void Tlayout::findDataOverlapping(const bool DEBUG) {
+  if (DEBUG) errs() << "-----------------findDataOverlapping----------------\n";
+
   unsigned int currentCore = 0;
   for (DenseMap<Instruction*, std::set<CallInst*> >::iterator MI = Data2Threads.begin();
     MI != Data2Threads.end(); ++MI){
+
+    //TODO: find the overlap btw set for each key, 
+    //need a heuristic to separate threads into at most 8 cores(according to the machine)
+
     std::set<CallInst*> accessCommonDataThreads = MI->second;
     currentCore %= NUM_CORES;
-    //coreNum2Threads[currentCore] = accessCommonDataThreads;
-    for (std::set<CallInst*>::iterator SI = accessCommonDataThreads.begin(); SI != accessCommonDataThreads.end(); ++SI){
+    for (std::set<CallInst*>::iterator SI = accessCommonDataThreads.begin(); 
+      SI != accessCommonDataThreads.end(); ++SI){
       CallInst* threadCreateInst = dyn_cast<CallInst>(*SI);
       Thread2NewCoreNum[threadCreateInst] = currentCore;
     }
@@ -265,9 +254,12 @@ void Tlayout::findDataOverlapping(const bool DEBUG) {
 }
 
 bool Tlayout::optimizeThreadLocation(const bool DEBUG) {
+  if (DEBUG) errs() << "---------------optimizeThreadLocation---------------\n";
+
   for (DenseMap<CallInst*, CallInst*>::iterator MI = Thread2AffinityMap.begin();
     MI != Thread2AffinityMap.end(); ++MI){
-    CallInst* threadCreateInst = dyn_cast<CallInst>(MI->first);
+
+    CallInst* threadCreateInst = MI->first;
     Instruction* setCoreInst = Thread2CPUSetInstMap[threadCreateInst];
     Type *valueType = &(*(setCoreInst->getOperand(0))->getType());
     int coreNum = Thread2NewCoreNum[threadCreateInst];
