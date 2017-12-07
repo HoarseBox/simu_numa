@@ -6,6 +6,9 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/DenseMap.h"
 
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/ProfileInfo.h"
+
 #include <set>
 
 
@@ -22,7 +25,10 @@ namespace {
 
     static char ID;
     Tlayout() : ModulePass(ID) {}
-
+    virtual void getAnalysisUsage(AnalysisUsage &AU) const{
+	AU.addRequired<LoopInfo>();
+	AU.addRequired<ProfileInfo>();
+    }
     bool runOnModule(Module &M);
 
   private:
@@ -33,6 +39,8 @@ namespace {
 
     DenseMap<Instruction*, std::set<CallInst*> > Data2Threads;
 
+    LoopInfo *LI;
+    ProfileInfo* PI;
 
     void createThreadInfoRecord(Module &M, const bool DEBUG = false);
     void createGlobalDataRecord(Module &M, const bool DEBUG = false);
@@ -75,8 +83,43 @@ bool Tlayout::runOnModule(Module &M) {
 
 void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
 
+  PI = &getAnalysis<ProfileInfo>();
+
   for (Module::iterator F = M.begin(); F != M.end(); ++F) {
-    errs() << "~~~~~~~~~~~~~~~~Func Name: " << F->getName() << '\n';
+	if (F->isDeclaration()) {
+		continue;
+	}
+	Function &func = *F;
+	LoopInfo &testLI = getAnalysis<LoopInfo>(func);
+	for (LoopInfo::iterator LIT = testLI.begin(); LIT!=testLI.end(); LIT++){
+		errs()<<"~~~~~~"<<F->getName()<<"~~~~~~~"<<**LIT<<"\n";
+		
+		// need to make sure the loop contains "pthread_create"
+		bool contain = false;
+		for (Loop::block_iterator bb = (*LIT)->block_begin(); bb!=(*LIT)->block_end(); bb++){
+			//errs()<<**bb<<"\n";
+			for (BasicBlock::iterator inst = (*bb)->begin(); inst!=(*bb)->end(); inst++){
+				errs()<<*inst<<"\n";
+			}
+		}
+
+		BasicBlock* Preheader = (*LIT)->getLoopPreheader();
+		errs()<<"Preheader: "<<*Preheader<<"\n";
+//		for (Loop::block_iterator bb = (*LIT)->block_begin(); bb!=(*LIT)->block_end(); bb++){
+//			errs()<<**bb<<"\n";
+//		}
+
+		//if ((*LIT)->getCanonicalInductionVariable()!=NULL){
+		//	errs()<<"&&&&&&&&&&&&&&&&&&&&&&&"<<(*LIT)->getCanonicalInductionVariable()->getName()<<"\n";
+		//}
+
+	
+	}
+  }
+
+   for (Module::iterator F = M.begin(); F != M.end(); ++F) {
+	 
+    errs() << "Func Name: " << F->getName() << '\n';
     
     for (Function::iterator BB = F->begin(); BB != F->end(); ++BB) {
 //	errs()<<*BB<<"\n";
@@ -114,7 +157,6 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
 	     Instruction& Inst = *BI;
 	     errs()<<Inst<<"\n";
 	     if (!isa<CallInst>(&Inst)) continue;
-	     errs()<<"~~~~~~repeat call function inst: "<<Inst<<"\n";
 	     CallInst *lockInst = dyn_cast<CallInst>(&Inst);
 	     Function *lockFunc = lockInst->getCalledFunction();
 	     if (!lockFunc){
@@ -126,13 +168,9 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
 		errs()<<"###########pthread mutex############\n";
 	     }
 	
-	   }	   
-	 } 
-	  
-
-	  //function
-	  //for ()
-	}
+	    }	   
+	  } 
+        }
 
  /*       // Find the CallInst
         Instruction &I = *II;
