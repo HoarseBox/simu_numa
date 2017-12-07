@@ -92,28 +92,47 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
 	Function &func = *F;
 	LoopInfo &testLI = getAnalysis<LoopInfo>(func);
 	for (LoopInfo::iterator LIT = testLI.begin(); LIT!=testLI.end(); LIT++){
-		errs()<<"~~~~~~"<<F->getName()<<"~~~~~~~"<<**LIT<<"\n";
+	//	errs()<<"~~~~~~"<<F->getName()<<"~~~~~~~"<<**LIT<<"\n";
 		
 		// need to make sure the loop contains "pthread_create"
-		bool contain = false;
+		bool containPthreadCreate = false;
+
 		for (Loop::block_iterator bb = (*LIT)->block_begin(); bb!=(*LIT)->block_end(); bb++){
 			//errs()<<**bb<<"\n";
-			for (BasicBlock::iterator inst = (*bb)->begin(); inst!=(*bb)->end(); inst++){
-				errs()<<*inst<<"\n";
+			for (BasicBlock::iterator II = (*bb)->begin(); II!=(*bb)->end(); II++){
+				errs()<<*II<<"\n";
+				// Find the CallInst
+			       	Instruction &I = *II;
+			        if (!isa<CallInst>(I)) {
+			          continue;
+			        }
+				CallInst *callInst = dyn_cast<CallInst>(&I);
+			        Function *calledFunc = callInst->getCalledFunction();
+			        if (!calledFunc) {
+			          errs() << "\tWARN: Indirect function call.\n";
+			          continue;
+       				}
+
+				// find the pthread create function and 
+				// get the function name so we can know which 
+				// is the "DoWork" function called by pthread
+				StringRef funcName = calledFunc->getName();
+				if (funcName.equals(FUNCNAME_PTHREAD_CREATE)) {
+				  errs().write_escaped(funcName)<<'\n';
+				  containPthreadCreate = true;
+				  break;
+       			        }
 			}
+			if (containPthreadCreate) break;
 		}
 
-		BasicBlock* Preheader = (*LIT)->getLoopPreheader();
-		errs()<<"Preheader: "<<*Preheader<<"\n";
-//		for (Loop::block_iterator bb = (*LIT)->block_begin(); bb!=(*LIT)->block_end(); bb++){
-//			errs()<<**bb<<"\n";
-//		}
-
-		//if ((*LIT)->getCanonicalInductionVariable()!=NULL){
-		//	errs()<<"&&&&&&&&&&&&&&&&&&&&&&&"<<(*LIT)->getCanonicalInductionVariable()->getName()<<"\n";
-		//}
-
-	
+		if (containPthreadCreate){
+			BasicBlock* Preheader = (*LIT)->getLoopPreheader();
+			errs()<<"Preheader: "<<*Preheader<<"\n";
+			//if ((*LIT)->getCanonicalInductionVariable()!=NULL){
+			//	errs()<<"&&&&&&&&&&&&&&&&&&&&&&&"<<(*LIT)->getCanonicalInductionVariable()->getName()<<"\n";
+			//}
+		}
 	}
   }
 
