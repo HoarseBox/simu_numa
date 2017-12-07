@@ -92,7 +92,7 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
 	Function &func = *F;
 	LoopInfo &testLI = getAnalysis<LoopInfo>(func);
 	for (LoopInfo::iterator LIT = testLI.begin(); LIT!=testLI.end(); LIT++){
-	//	errs()<<"~~~~~~"<<F->getName()<<"~~~~~~~"<<**LIT<<"\n";
+	//	errs()<<"Function Name: "<<F->getName()<<**LIT<<"\n";
 		
 		// need to make sure the loop contains "pthread_create"
 		bool containPthreadCreate = false;
@@ -127,8 +127,17 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
 		}
 
 		if (containPthreadCreate){
+			// get the preheader of the current loop
 			BasicBlock* Preheader = (*LIT)->getLoopPreheader();
 			errs()<<"Preheader: "<<*Preheader<<"\n";
+
+			// get the entry basic block
+			// which is the next basic block of the preheader
+			
+
+
+
+
 			//if ((*LIT)->getCanonicalInductionVariable()!=NULL){
 			//	errs()<<"&&&&&&&&&&&&&&&&&&&&&&&"<<(*LIT)->getCanonicalInductionVariable()->getName()<<"\n";
 			//}
