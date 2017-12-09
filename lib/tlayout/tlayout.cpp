@@ -50,7 +50,7 @@ namespace {
 
     void createThreadInfoRecord(Module &M, const bool DEBUG = false);
     void createGlobalDataRecord(Module &M, const bool DEBUG = false);
-    void findDataOverlapping(const bool DEBUG = false);
+    void findDataOverlapping(Module &M, const bool DEBUG = false);
     bool optimizeThreadLocation(const bool DEBUG = false);
 
     // void dfsRootAncestor(Instruction* threadInst, Instruction* child, const bool DEBUG = false);
@@ -83,7 +83,7 @@ bool Tlayout::runOnModule(Module &M) {
 
   /* TODO: explain the function
   */
-  findDataOverlapping();
+  findDataOverlapping(M, true);
 
   /* TODO: explain the function
   */
@@ -95,124 +95,67 @@ bool Tlayout::runOnModule(Module &M) {
 void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
   if (DEBUG) errs() << "----------------createThreadInfoRecord--------------\n";
 
-  for (Module::iterator F = M.begin(); F != M.end(); ++F) {
-    if (F->isDeclaration()) {
-      continue;
-    }
-    Function &func = *F;
-    LoopInfo &testLI = getAnalysis<LoopInfo>(func);
-    PI = &getAnalysis<ProfileInfo>();
+  // for (Module::iterator F = M.begin(); F != M.end(); ++F) {
+  //   if (F->isDeclaration()) {
+  //     continue;
+  //   }
+  //   Function &func = *F;
+  //   LoopInfo &testLI = getAnalysis<LoopInfo>(func);
+  //   PI = &getAnalysis<ProfileInfo>();
   
 
-    for (LoopInfo::iterator LIT = testLI.begin(); LIT!=testLI.end(); LIT++){
+  //   for (LoopInfo::iterator LIT = testLI.begin(); LIT!=testLI.end(); LIT++){
       
-      // need to make sure the loop contains "pthread_create"
-      bool containPthreadCreate = false;
-      int forIterationCounts = 0;
+  //     // need to make sure the loop contains "pthread_create"
+  //     bool containPthreadCreate = false;
+  //     int forIterationCounts = 0;
 
-      for (Loop::block_iterator bb = (*LIT)->block_begin(); bb!=(*LIT)->block_end(); bb++){
-        for (BasicBlock::iterator II = (*bb)->begin(); II!=(*bb)->end(); II++){
-          errs()<<*II<<"\n";
-          // Find the CallInst
-          Instruction &I = *II;
-          if (!isa<CallInst>(I)) {
-            continue;
-          }
-          CallInst *callInst = dyn_cast<CallInst>(&I);
-          Function *calledFunc = callInst->getCalledFunction();
-          if (!calledFunc) {
-            errs() << "\tWARN: Indirect function call.\n";
-            continue;
-          }
+  //     for (Loop::block_iterator bb = (*LIT)->block_begin(); bb!=(*LIT)->block_end(); bb++){
+  //       for (BasicBlock::iterator II = (*bb)->begin(); II!=(*bb)->end(); II++){
+  //         if (DEBUG) errs() << *II << "\n";
+  //         // Find the CallInst
+  //         Instruction &I = *II;
+  //         if (!isa<CallInst>(I)) {
+  //           continue;
+  //         }
+  //         CallInst *callInst = dyn_cast<CallInst>(&I);
+  //         Function *calledFunc = callInst->getCalledFunction();
+  //         if (!calledFunc) {
+  //           errs() << "\tWARN: Indirect function call.\n";
+  //           continue;
+  //         }
 
-          // find the pthread create function and 
-          // get the function name so we can know which 
-          // is the "DoWork" function called by pthread
-          StringRef funcName = calledFunc->getName();
-          if (funcName.equals(FUNCNAME_PTHREAD_CREATE)) {
-            errs().write_escaped(funcName)<<'\n';
-            containPthreadCreate = true;
-            break;
-          }
-        }
-        if (containPthreadCreate){
-          // get the preheader of the current loop
-          BasicBlock* Preheader = (*LIT)->getLoopPreheader();
-          int forIterationCounts = PI->getExecutionCount(Preheader);  
-      
-          errs()<<"Preheader: "<<forIterationCounts<<*Preheader<<"\n";
+  //         // find the pthread create function and get the function name 
+  //         StringRef funcName = calledFunc->getName();
+  //         if (funcName.equals(FUNCNAME_PTHREAD_CREATE)) {
+  //           errs().write_escaped(funcName)<<'\n';
+  //           containPthreadCreate = true;
+  //           break;
+  //         }
+  //       }
+  //       if (containPthreadCreate) {
+  //         // get the preheader of the current loop
+  //         BasicBlock* Preheader = (*LIT)->getLoopPreheader();
+  //         int forIterationCounts = PI->getExecutionCount(Preheader);  
+  //         if (DEBUG) errs() << "forIterationCounts: " << forIterationCounts <<"\n";
+
+  //         // get the entry basic block
+  //         // which is the next basic block of the preheader
+  //         int NumSuccessor = Preheader->getTerminator()->getNumSuccessors();
+  //         if (NumSuccessor == 1){
+  //           BasicBlock* nextBlock = Preheader->getTerminator()->getSuccessor(0);
     
-          // get the entry basic block
-          // which is the next basic block of the preheader
-          int NumSuccessor = Preheader->getTerminator()->getNumSuccessors();
-          if (NumSuccessor==1){
-            BasicBlock* nextBlock = Preheader->getTerminator()->getSuccessor(0);
-            errs()<<*nextBlock<<"\n";
-    
-            forIterationCounts = PI->getExecutionCount(nextBlock);  
-            errs()<<"~~~~~~~~~~~~~~~~~~~~~~~for iteration counts: "<<forIterationCounts<<"\n";
-          }   
+  //           forIterationCounts = PI->getExecutionCount(nextBlock);  
+  //           errs()<<"for iteration counts: "<< forIterationCounts << "\n";
+  //         }
         
-          //if ((*LIT)->getCanonicalInductionVariable()!=NULL){
-          //  errs()<<"&&&&&&&&&&&&&&&&&&&&&&&"<<(*LIT)->getCanonicalInductionVariable()->getName()<<"\n";
-          //}
-        } //end if containPthreadCreate
-      } //end for bb
-    } //end for LIT
-  } //end for module
-
-  for (Module::iterator F = M.begin(); F != M.end(); ++F) {
-    for (Function::iterator BB = F->begin(); BB != F->end(); ++BB) {
-      for (BasicBlock::iterator II = BB->begin(); II != BB->end(); ++II) {
-        // Find the CallInst
-        Instruction &I = *II;
-        if (!isa<CallInst>(I)) {
-          continue;
-        }
-        CallInst *callInst = dyn_cast<CallInst>(&I);
-        Function *calledFunc = callInst->getCalledFunction();
-        if (!calledFunc) {
-          errs() << "\tWARN: Indirect function call.\n";
-          continue;
-        }
-
-        // find the pthread create function and 
-        // get the function name so we can know which 
-        // is the "DoWork" function called by pthread
-        StringRef funcName = calledFunc->getName();
-        if (funcName.equals(FUNCNAME_PTHREAD_CREATE)) {
-        //  errs().write_escaped(funcName)<<'\n';
-      
-          //find the function created by pthread
-          Value *createFunc = callInst->getArgOperand(2);
-               // errs()<<*createFunc<<"\n";
-    
-          Function* calledFunc = dyn_cast<Function> (createFunc);
-     
-          // iterate through the function to find the lock and unlock pair
-          for (Function::iterator FI = calledFunc->begin(); FI!=calledFunc->end(); FI++){
-            for (BasicBlock::iterator BI = FI->begin(); BI!=FI->end(); BI++){
-              // find the lock and unlock instruction
-              Instruction& Inst = *BI;
-              // errs()<<Inst<<"\n";
-              if (!isa<CallInst>(&Inst)) continue;
-              CallInst *lockInst = dyn_cast<CallInst>(&Inst);
-              Function *lockFunc = lockInst->getCalledFunction();
-              if (!lockFunc){
-                //errs()<<"\tWARN: Indirect function call.\n";
-                continue;
-              }
-              StringRef lockFuncName = lockFunc->getName();
-              if (lockFuncName.equals(FUNCNAME_PTHREAD_MUTEX_LOCK)){
-                //errs()<<"###########pthread mutex############\n";
-              }
-            }
-          }
-        } //end if FUNCNAME_PTHREAD_CREATE
-      } //end for bb
-    }//end for function
-  }//end for module
-
+  //         //if ((*LIT)->getCanonicalInductionVariable()!=NULL){
+  //         //  errs()<<"&&&&&&&&&&&&&&&&&&&&&&&"<<(*LIT)->getCanonicalInductionVariable()->getName()<<"\n";
+  //         //}
+  //       } //end if containPthreadCreate
+  //     } //end for bb
+  //   } //end for LIT
+  // } //end for module
 
   for (Module::iterator F = M.begin(); F != M.end(); ++F) {
     if (DEBUG) errs() << "Func Name: " << F->getName() << '\n';
@@ -360,7 +303,7 @@ void Tlayout::createGlobalDataRecord(Module &M, const bool DEBUG) {
 }
 
 
-void Tlayout::findDataOverlapping(const bool DEBUG) {
+void Tlayout::findDataOverlapping(Module &M, const bool DEBUG) {
   if (DEBUG) errs() << "-----------------findDataOverlapping----------------\n";
 
   unsigned int currentCore = 0;
@@ -380,7 +323,37 @@ void Tlayout::findDataOverlapping(const bool DEBUG) {
     currentCore++;
   }
 
+  bool hasLock = false;
+      
+  for (DenseMap<CallInst*, CallInst*>::iterator MI = Thread2AffinityMap.begin(); 
+    MI != Thread2AffinityMap.end(); ++MI) {
 
+    CallInst *callInst = MI->first;
+    Value *createFunc = callInst->getArgOperand(2);
+    Function* calledFunc = dyn_cast<Function> (createFunc);
+
+    // iterate through the function to find the lock and unlock pair
+    for (Function::iterator FI = calledFunc->begin(); FI!=calledFunc->end(); FI++){
+      for (BasicBlock::iterator BI = FI->begin(); BI!=FI->end(); BI++){
+        // find the lock and unlock instruction
+        Instruction& Inst = *BI;
+        
+        if (!isa<CallInst>(&Inst)) {
+          continue;
+        }
+        CallInst *lockInst = dyn_cast<CallInst>(&Inst);
+        Function *lockFunc = lockInst->getCalledFunction();
+        if (!lockFunc){
+          continue;
+        }
+        StringRef lockFuncName = lockFunc->getName();
+        if (lockFuncName.equals(FUNCNAME_PTHREAD_MUTEX_LOCK)){
+          if (DEBUG) errs() << "find lockInst: " << *lockInst << "\n";
+          hasLock = true;
+        }
+      }
+    }
+  }
   return;
 }
 
