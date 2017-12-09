@@ -62,7 +62,7 @@ opt -load ~/mypass/Debug+Asserts/lib/tlayout.so -tlayout < $TEST.ls.bc > /dev/nu
 # g++ -o $TEST.slicm $TEST.slicm.s
 
 ## Generate CFG
-# opt -dot-cfg $TEST.bc >& /dev/null
-# dot -Tpdf cfg.main.dot -o $TEST.pdf
-# dot -Tpdf cfg._Z6DoWorkPv.dot -o $TESTDoWork.pdf
-# rm cfg.*.dot
+ opt -dot-cfg $TEST.bc >& /dev/null
+ dot -Tpdf cfg.main.dot -o $TEST.pdf
+ dot -Tpdf cfg._Z6DoWorkPv.dot -o $TESTDoWork.pdf
+ rm cfg.*.dot
