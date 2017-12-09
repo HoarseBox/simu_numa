@@ -14,6 +14,8 @@ After running our LLVM pass(es), the performance improved by...
 ### Assumptions
 1. our testcases starts with two threads
 1. threads are executed in sequence order
+1. pthread_attr_setaffinity_np must be called before pthread_create
+1. pthread_attr_setaffinity_np must be called close to CORE_SET
 
 ### Algorithm
 Find the pair of thread and data(address):
@@ -26,17 +28,17 @@ Find the pair of thread and data(address):
 ### Future works
 1. sequence execution
 1. random execution
-** use heuristic to find the intersection
+ * use heuristic to find the intersection
 1. complex global data share pattern
+1. release Assumption 3
 
 
 ## Log
 
 ### Problems
-* Find the function call of thread_create, but the 3rd argument(function called by the thread) is a pointer. The pointer cannot be dereferenced in the compile time. How to know which function this pointer is pointing to?
+* How to identify thread uniquely, especially for the thread created in the loop?
 * How to identify global data?
 
 ### Solved Problems
 * Which LLVM pass should be used? How many passes should be used?
-** Write 3 FunctionPasses: ThreadInfo, GlobalData, ThreadMapping
-** Add ThreadInfo and GlobalData Passes to ThreadMapping as AnalysisUsage
+ * use ModulePass, which is very flexible
