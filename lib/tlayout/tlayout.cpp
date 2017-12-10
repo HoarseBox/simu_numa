@@ -25,8 +25,10 @@ namespace {
     static const unsigned int NUM_CORES;
 
     static char ID;
+    ProfileInfo* PI;
+
     Tlayout() : ModulePass(ID) {}
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const{
+    void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequired<LoopInfo>();
       AU.addRequired<ProfileInfo>();
     }
@@ -43,7 +45,6 @@ namespace {
     DenseMap<Instruction*, std::set<CallInst*> > Data2Threads;
 
     LoopInfo *LI;
-    ProfileInfo* PI;
     DenseMap<CallInst*, int> Thread2NewCoreNum;
 
     //DenseMap<int, std::set<CallInst*> > coreNum2Threads;
@@ -72,6 +73,8 @@ static RegisterPass<Tlayout> X("tlayout", "Optimize Thread Layout on Multicore")
 
 bool Tlayout::runOnModule(Module &M) {
 
+  PI = &getAnalysis<ProfileInfo>();
+
   bool changed = false;
 
   /* TODO: add comments to explain the function
@@ -95,68 +98,6 @@ bool Tlayout::runOnModule(Module &M) {
 
 void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
   if (DEBUG) errs() << "----------------createThreadInfoRecord--------------\n";
-
-  // for (Module::iterator F = M.begin(); F != M.end(); ++F) {
-  //   if (F->isDeclaration()) {
-  //     continue;
-  //   }
-  //   Function &func = *F;
-  //   LoopInfo &testLI = getAnalysis<LoopInfo>(func);
-  //   PI = &getAnalysis<ProfileInfo>();
-  
-
-  //   for (LoopInfo::iterator LIT = testLI.begin(); LIT!=testLI.end(); LIT++){
-      
-  //     // need to make sure the loop contains "pthread_create"
-  //     bool containPthreadCreate = false;
-  //     int forIterationCounts = 0;
-
-  //     for (Loop::block_iterator bb = (*LIT)->block_begin(); bb!=(*LIT)->block_end(); bb++){
-  //       for (BasicBlock::iterator II = (*bb)->begin(); II!=(*bb)->end(); II++){
-  //         if (DEBUG) errs() << *II << "\n";
-  //         // Find the CallInst
-  //         Instruction &I = *II;
-  //         if (!isa<CallInst>(I)) {
-  //           continue;
-  //         }
-  //         CallInst *callInst = dyn_cast<CallInst>(&I);
-  //         Function *calledFunc = callInst->getCalledFunction();
-  //         if (!calledFunc) {
-  //           errs() << "\tWARN: Indirect function call.\n";
-  //           continue;
-  //         }
-
-  //         // find the pthread create function and get the function name 
-  //         StringRef funcName = calledFunc->getName();
-  //         if (funcName.equals(FUNCNAME_PTHREAD_CREATE)) {
-  //           errs().write_escaped(funcName)<<'\n';
-  //           containPthreadCreate = true;
-  //           break;
-  //         }
-  //       }
-  //       if (containPthreadCreate) {
-  //         // get the preheader of the current loop
-  //         BasicBlock* Preheader = (*LIT)->getLoopPreheader();
-  //         int forIterationCounts = PI->getExecutionCount(Preheader);  
-  //         if (DEBUG) errs() << "forIterationCounts: " << forIterationCounts <<"\n";
-
-  //         // get the entry basic block
-  //         // which is the next basic block of the preheader
-  //         int NumSuccessor = Preheader->getTerminator()->getNumSuccessors();
-  //         if (NumSuccessor == 1){
-  //           BasicBlock* nextBlock = Preheader->getTerminator()->getSuccessor(0);
-    
-  //           forIterationCounts = PI->getExecutionCount(nextBlock);  
-  //           errs()<<"for iteration counts: "<< forIterationCounts << "\n";
-  //         }
-        
-  //         //if ((*LIT)->getCanonicalInductionVariable()!=NULL){
-  //         //  errs()<<"&&&&&&&&&&&&&&&&&&&&&&&"<<(*LIT)->getCanonicalInductionVariable()->getName()<<"\n";
-  //         //}
-  //       } //end if containPthreadCreate
-  //     } //end for bb
-  //   } //end for LIT
-  // } //end for module
 
   for (Module::iterator F = M.begin(); F != M.end(); ++F) {
     if (DEBUG) errs() << "Func Name: " << F->getName() << '\n';
@@ -235,6 +176,16 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
       } //end for Instr
     } // end for BB
   } // end for Function
+
+  for (DenseMap<CallInst*, CallInst*>::iterator MI = Thread2AffinityMap.begin();
+    MI != Thread2AffinityMap.end(); ++MI) {
+
+    BasicBlock *bb = MI->first->getParent();
+    double executionCount = PI->getExecutionCount(bb);  
+    if (DEBUG) errs() << "ExecutionCount: " << executionCount << "\n";
+  }
+
+  return;
 }
 
 /*

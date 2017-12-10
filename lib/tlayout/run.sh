@@ -36,7 +36,8 @@ echo "[Step 3 done]"
 
 echo "test pass"
 # opt -load ~/mypass/Debug+Asserts/lib/tlayout.so -tlayout < $TEST.ls.bc > /dev/null
-opt -load ~/mypass/Debug+Asserts/lib/tlayout.so -tlayout < $TEST.ls.bc > $TEST.tlayout.bc
+opt -load ~/mypass/Debug+Asserts/lib/tlayout.so \
+-profile-loader -profile-info-file=llvmprof.out -tlayout < $TEST.ls.bc > $TEST.tlayout.bc
 
 # echo "Step 4: Getting Lamp profile..."
 # opt -load ~/mypass/Release+Asserts/lib/slicm.so -lamp-insts -insert-lamp-profiling -insert-lamp-loop-profiling -insert-lamp-init < $TEST.ls.bc > $TEST.lamp.bc 
@@ -62,9 +63,8 @@ g++ -pthread -std=c++11 -o $TEST $TEST.s
 llc $TEST.tlayout.bc -o $TEST.tlayout.s
 g++ -pthread -std=c++11 -o $TEST.tlayout $TEST.tlayout.s
 
-## Generate CFG
- opt -dot-cfg $TEST.bc >& /dev/null
- dot -Tpdf cfg.main.dot -o $TEST.pdf
- dot -Tpdf cfg._Z6DoWorkPv.dot -o $TESTDoWork.pdf
- rm cfg.*.dot
-
+# Generate CFG
+opt -dot-cfg $TEST.tlayout.bc >& /dev/null
+dot -Tpdf cfg.main.dot -o $TEST.tlayout.pdf
+# dot -Tpdf cfg._Z6DoWorkPv.dot -o $TESTDoWork.pdf
+rm cfg.*.dot
