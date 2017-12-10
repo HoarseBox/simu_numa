@@ -36,6 +36,7 @@ namespace {
     DenseMap<CallInst*, CallInst*> Thread2AffinityMap; // thread_create Inst -> setaffinity Inst
 
     DenseMap<CallInst*, Instruction*> Thread2CPUSetInstMap;
+    DenseMap<CallInst*, Instruction*> Thread2CPUIdInstMap;
 
     DenseMap<Instruction*, std::set<Instruction*> > ThreadGlobalDataMap;
 
@@ -75,7 +76,7 @@ bool Tlayout::runOnModule(Module &M) {
 
   /* TODO: add comments to explain the function
    */
-  createThreadInfoRecord(M);
+  createThreadInfoRecord(M, true);
 
   /* TODO: explain the function
    */
@@ -204,12 +205,21 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
                 setCoreBBRef = LLVMGetPreviousBasicBlock(currentBBRef);
                 currentBBRef = setCoreBBRef;
               }
+              
+              unsigned storeCount = 0;
               BasicBlock* setCoreBB = unwrap(setCoreBBRef);
               for (BasicBlock::iterator I = setCoreBB->begin(); I != setCoreBB->end(); ++I){
                 Instruction* temp = dyn_cast<Instruction>(I);
                 if (I && isa<StoreInst>(temp)){
                   if (DEBUG) errs() << *temp << '\n';
-                  Thread2CPUSetInstMap[callInst] = temp;
+                  if (storeCount == 0) {
+                    Thread2CPUIdInstMap[callInst] = temp;
+                  } else if (storeCount == 1) {
+                    Thread2CPUSetInstMap[callInst] = temp;
+                  } else {
+                    errs() << "ERROR: has more than 2 stores, check IR please!\n";
+                  }
+                  storeCount++;
                 }
               }
 
@@ -364,14 +374,23 @@ bool Tlayout::optimizeThreadLocation(const bool DEBUG) {
     MI != Thread2AffinityMap.end(); ++MI){
 
     CallInst* threadCreateInst = MI->first;
+    Instruction* setCoreId = Thread2CPUIdInstMap[threadCreateInst];
     Instruction* setCoreInst = Thread2CPUSetInstMap[threadCreateInst];
-    Type *valueType = &(*(setCoreInst->getOperand(0))->getType());
-    int coreNum = Thread2NewCoreNum[threadCreateInst];
-    if (DEBUG) errs() << "before: "<< *setCoreInst << '\n';
+    if (DEBUG) errs() << "thread:\t" << *threadCreateInst << '\n';
+    if (DEBUG) errs() << "set id:\t" << *setCoreId << '\n';
+    if (DEBUG) errs() << "set core:\t" << *setCoreInst << '\n';
 
+    int coreNum = Thread2NewCoreNum[threadCreateInst];
+    
+    Type *valueType = &(*(setCoreId->getOperand(0))->getType());
     Constant *coreNumValue = ConstantInt::get(valueType, coreNum);
+    setCoreId->setOperand(0, coreNumValue);
+    if (DEBUG) errs() << "id after:\t" << *setCoreId << '\n';
+
+    valueType = &(*(setCoreInst->getOperand(0))->getType());
+    coreNumValue = ConstantInt::get(valueType, coreNum);
     setCoreInst->setOperand(0, coreNumValue);
-    if (DEBUG) errs() << "after: " << *setCoreInst << '\n';
+    if (DEBUG) errs() << "core after:\t" << *setCoreInst << '\n';
   } 
   return true;
 }
