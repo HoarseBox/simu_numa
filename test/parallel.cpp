@@ -14,6 +14,7 @@ using namespace std;
  
 struct tidAndAddr{
 	int ID;
+	int coreId;
 	int* addr1;
 	int* addr2;
 };
@@ -72,8 +73,8 @@ int main(int argc, char** argv){
 	for (int i=0; i<NumThreads; i++){
 		pthread_attr_init(&attr);
 		CPU_ZERO(&cpus);
-		CPU_SET(i, &cpus);
-		int threadNum = i;
+		p[i].coreId = i;
+		CPU_SET(p[i].coreId, &cpus);
 		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
 		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
 	}
@@ -84,8 +85,8 @@ int main(int argc, char** argv){
 	for (int i=0; i<NumThreads; i++){
 		pthread_attr_init(&attr);
 		CPU_ZERO(&cpus);
-		CPU_SET(i+7, &cpus);
-		int threadNum = i;
+		p[i].coreId = i+7;
+		CPU_SET(p[i].coreId, &cpus);
 		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
 		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
 	}
