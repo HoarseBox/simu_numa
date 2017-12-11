@@ -58,6 +58,8 @@ namespace {
     void createGlobalDataRecord(Module &M, const bool DEBUG = false);
     void findDataOverlapping(Module &M, const bool DEBUG = false);
     bool optimizeThreadLocation(const bool DEBUG = false);
+    void searchUp(Instruction*, Instruction*&, const bool DEBUG = false);
+    void searchDown(Instruction*, const bool DEBUG = false);
 
     // void dfsRootAncestor(Instruction* threadInst, Instruction* child, const bool DEBUG = false);
 
@@ -87,24 +89,55 @@ bool Tlayout::runOnModule(Module &M) {
 
   /* TODO: explain the function
    */
-  createGlobalDataRecord(M, true);
+  createGlobalDataRecord(M);
 
   /* TODO: explain the function
   */
-  findDataOverlapping(M, true);
+  findDataOverlapping(M);
 
   /* TODO: explain the function
   */
-  changed = optimizeThreadLocation(true);
+  changed = optimizeThreadLocation();
 
   return true;
+}
+
+void Tlayout::searchUp(Instruction* inst, Instruction*& hold, const bool DEBUG){
+  if (!inst) {
+    return;
+  }
+  for (unsigned int i = 0; i != inst->getNumOperands(); ++i){
+    Instruction* operand = dyn_cast<Instruction>(inst->getOperand(i));
+    if (operand && isa<AllocaInst>(operand)){
+      hold = operand;
+    }
+    if (operand) errs() << *operand << '\n';
+    searchUp(operand, hold, DEBUG);
+  }
+}
+
+void Tlayout::searchDown(Instruction* inst, const bool DEBUG){
+  if (!inst){
+    return;
+  }
+
+  for (Value::use_iterator use = inst->use_begin(); use != inst->use_end(); ++use){
+    Instruction* u = dyn_cast<Instruction>(*use);
+    if (u && isa<StoreInst>(u)){
+      errs() << *u << '\n';
+      Instruction* temp;
+      errs() << "search up up up up up \n";
+      searchUp(u, temp, DEBUG);
+    }
+    searchDown(u, DEBUG);
+  }
 }
 
 void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
   if (DEBUG) errs() << "----------------createThreadInfoRecord--------------\n";
 
   for (Module::iterator F = M.begin(); F != M.end(); ++F) {
-    if (DEBUG) errs() << "Func Name: " << F->getName() << '\n';
+    //if (DEBUG) errs() << "Func Name: " << F->getName() << '\n';
     
     for (Function::iterator BB = F->begin(); BB != F->end(); ++BB) {
       for (BasicBlock::iterator II = BB->begin(); II != BB->end(); ++II) {
@@ -170,6 +203,22 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
 
               break;
             }
+          }
+          Value *argValue = callInst->getArgOperand(3);
+          if (DEBUG) {
+            errs() << "\t\t\targument is =========\n";
+            errs() << "\t\t\t"<< *argValue << '\n';
+            Instruction* argCastInst = dyn_cast<Instruction>(argValue);
+            Instruction* allocaInst;
+            
+            searchUp(argCastInst, allocaInst, DEBUG);
+            /*
+            errs() << "\t\t\t" << *allocaInst << '\n';
+            errs() << "\t\t\tyoyoyoyoyoyoyoyo\n";
+            errs() << "\t\t\t call search down\n";
+            searchDown(allocaInst, DEBUG);
+            errs() << "\t\t\tmy print =====================\n";
+            */
           }
 
         } else if (funcName.equals(FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP)) {

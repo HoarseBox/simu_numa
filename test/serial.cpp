@@ -49,6 +49,7 @@ int main(int argc, char** argv){
 	cpu_set_t cpus;
 	// create a bunch of threads randomly distributed them on different cores.
 	struct tidAndAddr p;
+	struct tidAndAddr p1;
 
 	int* tmp;
 	tmp = new int[100000];
@@ -58,6 +59,9 @@ int main(int argc, char** argv){
 
 	p.addr1 = tmp;
 	p.ID = 0;
+	p1.addr1 = tmp;
+	p1.ID = 1;
+
 	
 	pthread_attr_init(&attr);
 	CPU_ZERO(&cpus);
@@ -73,10 +77,10 @@ int main(int argc, char** argv){
 
 	pthread_attr_init(&attr);
 	CPU_ZERO(&cpus);
-	p.coreId = coreNum2;
-	CPU_SET(p.coreId, &cpus);
+	p1.coreId = coreNum2;
+	CPU_SET(p1.coreId, &cpus);
 	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-	pthread_create(&thread, &attr, DoWork, (void*)&p);
+	pthread_create(&thread, &attr, DoWork, (void*)&p1);
 
 	pthread_join(thread, NULL);
 		
