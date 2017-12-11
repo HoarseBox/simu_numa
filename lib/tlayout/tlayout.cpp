@@ -42,7 +42,11 @@ namespace {
 
     DenseMap<Instruction*, std::set<Instruction*> > ThreadGlobalDataMap;
 
+    DenseMap<CallInst*, unsigned int> Thread2ExecutionCount;
+
     DenseMap<Instruction*, std::set<CallInst*> > Data2Threads;
+
+    DenseMap<Instruction*, std::set<CallInst*> > Mutex2Threads;
 
     LoopInfo *LI;
     DenseMap<CallInst*, int> Thread2NewCoreNum;
@@ -179,9 +183,10 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
 
   for (DenseMap<CallInst*, CallInst*>::iterator MI = Thread2AffinityMap.begin();
     MI != Thread2AffinityMap.end(); ++MI) {
-
     BasicBlock *bb = MI->first->getParent();
-    double executionCount = PI->getExecutionCount(bb);  
+    double executionCount = PI->getExecutionCount(bb);
+    Thread2ExecutionCount[MI->first] = (unsigned int) executionCount;
+    if (DEBUG) errs() << "map size ===  " << Thread2ExecutionCount.size() << "\n"; 
     if (DEBUG) errs() << "ExecutionCount: " << executionCount << "\n";
   }
 
@@ -261,29 +266,6 @@ void Tlayout::createGlobalDataRecord(Module &M, const bool DEBUG) {
     }
   }
 
-}
-
-
-void Tlayout::findDataOverlapping(Module &M, const bool DEBUG) {
-  if (DEBUG) errs() << "-----------------findDataOverlapping----------------\n";
-
-  unsigned int currentCore = 0;
-  for (DenseMap<Instruction*, std::set<CallInst*> >::iterator MI = Data2Threads.begin();
-    MI != Data2Threads.end(); ++MI){
-
-    //TODO: find the overlap btw set for each key, 
-    //need a heuristic to separate threads into at most 8 cores(according to the machine)
-
-    std::set<CallInst*> accessCommonDataThreads = MI->second;
-    currentCore %= NUM_CORES;
-    for (std::set<CallInst*>::iterator SI = accessCommonDataThreads.begin(); 
-      SI != accessCommonDataThreads.end(); ++SI){
-      CallInst* threadCreateInst = dyn_cast<CallInst>(*SI);
-      Thread2NewCoreNum[threadCreateInst] = currentCore;
-    }
-    currentCore++;
-  }
-
   bool hasLock = false;
       
   for (DenseMap<CallInst*, CallInst*>::iterator MI = Thread2AffinityMap.begin(); 
@@ -310,10 +292,45 @@ void Tlayout::findDataOverlapping(Module &M, const bool DEBUG) {
         StringRef lockFuncName = lockFunc->getName();
         if (lockFuncName.equals(FUNCNAME_PTHREAD_MUTEX_LOCK)){
           if (DEBUG) errs() << "find lockInst: " << *lockInst << "\n";
+          if (DEBUG) errs() << "mutex inst : " << *(lockInst->getOperand(0)) << "\n";
+          Instruction* mutexInst = dyn_cast<Instruction>(lockInst->getOperand(0));
+          Mutex2Threads[mutexInst].insert(callInst);
           hasLock = true;
         }
       }
     }
+
+    if (DEBUG) errs() << "mutex to thread map size " << Mutex2Threads.size() << '\n';
+    for (auto MI = Mutex2Threads.begin(); MI != Mutex2Threads.end(); ++MI){
+      if (DEBUG) errs() << "thread count ====== " << MI->second.size() << '\n';      
+      /*
+      for (auto SI = MI->second.begin(); SI != MI->second.end(); ++SI){
+
+      }
+      */
+    }
+  }
+}
+
+
+void Tlayout::findDataOverlapping(Module &M, const bool DEBUG) {
+  if (DEBUG) errs() << "-----------------findDataOverlapping----------------\n";
+
+  unsigned int currentCore = 0;
+  for (DenseMap<Instruction*, std::set<CallInst*> >::iterator MI = Data2Threads.begin();
+    MI != Data2Threads.end(); ++MI){
+
+    //TODO: find the overlap btw set for each key, 
+    //need a heuristic to separate threads into at most 8 cores(according to the machine)
+
+    std::set<CallInst*> accessCommonDataThreads = MI->second;
+    currentCore %= NUM_CORES;
+    for (std::set<CallInst*>::iterator SI = accessCommonDataThreads.begin(); 
+      SI != accessCommonDataThreads.end(); ++SI){
+      CallInst* threadCreateInst = dyn_cast<CallInst>(*SI);
+      Thread2NewCoreNum[threadCreateInst] = currentCore;
+    }
+    currentCore++;
   }
   return;
 }
