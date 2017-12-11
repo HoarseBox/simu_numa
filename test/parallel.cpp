@@ -23,8 +23,13 @@ void* DoWork(void* args){
 	// access data according the core number
 	struct tidAndAddr* p = (struct tidAndAddr*)args;
 	int TID = p->ID;
+	int coreId = p->coreId;
 	int* addr1 = p->addr1;
 	int* addr2 = p->addr2;
+	if (coreId >= 4) {
+		cout << "sleeping...\n";
+		usleep(5000);
+	}
 	if (TID%2==0){
 		for (int i=0; i<10000; i++){
 			addr1[rand()%65535] = addr1[rand()%65535]+1;

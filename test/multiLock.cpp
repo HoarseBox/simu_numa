@@ -14,6 +14,7 @@ using namespace std;
  
 struct tidAndAddr{
 	int ID;
+	int coreId;
 	int* addr1;
 	int* addr2;
 };
@@ -25,9 +26,13 @@ void* DoWork(void* args){
 	// access data according the core number
 	struct tidAndAddr* p = (struct tidAndAddr*)args;
 	int TID = p->ID;
+	int coreId = p->coreId;
 	int* addr1 = p->addr1;
 	int* addr2 = p->addr2;
-
+	if (coreId >= 4) {
+		cout << "sleeping...\n";
+		usleep(5000);
+	}
 	if (TID>500){
 		for (int i=0; i<10000; i++){
 			pthread_mutex_lock(&mutex1);
@@ -92,16 +97,19 @@ int main(int argc, char** argv){
 		if (i%2==0){
 			pthread_attr_init(&attr);
 			CPU_ZERO(&cpus);
-			CPU_SET(i%8, &cpus);
+			p[i].coreId = i % 8;
+			CPU_SET(p[i].coreId, &cpus);
+			pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+			pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
 		}
 		else{
 			pthread_attr_init(&attr);
 			CPU_ZERO(&cpus);
-			CPU_SET(i%8+8, &cpus);
+			p[i].coreId = i % 8 + 8;
+			CPU_SET(p[i].coreId, &cpus);
+			pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+			pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
 		}
-		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
-
 	}
 	for (int i=0; i<NumThreads; i++){
 		pthread_join(threads[i], NULL);
@@ -121,15 +129,19 @@ int main(int argc, char** argv){
 		if (i<500){
 			pthread_attr_init(&attr);
 			CPU_ZERO(&cpus);
-			CPU_SET(i%8, &cpus);
+			p[i].coreId = i % 8;
+			CPU_SET(p[i].coreId, &cpus);
+			pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+			pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
 		}
 		else{
 			pthread_attr_init(&attr);
 			CPU_ZERO(&cpus);
-			CPU_SET(i%8+8, &cpus);
+			p[i].coreId = i % 8 + 8;
+			CPU_SET(p[i].coreId, &cpus);
+			pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+			pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
 		}
-		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
 
 	}
 	for (int i=0; i<NumThreads; i++){
