@@ -69,6 +69,30 @@ void* groupA3(void* args){
 	return 0;
 }
 
+void* groupB1(void* args){
+	struct tidAndAddr* p = (struct tidAndAddr*)args;
+	int TID = p->ID;
+	int* addr1 = p->addr1;
+	int* addr2 = p->addr2;
+	int a;
+	for (int i=0; i<5000; i++){
+		a = addr1[rand()%65535];
+	}
+	return 0;
+}
+
+void* groupB2(void* args){
+	struct tidAndAddr* p = (struct tidAndAddr*)args;
+	int TID = p->ID;
+	int* addr1 = p->addr1;
+	int* addr2 = p->addr2;
+	int a;
+	for (int i=5000; i<10000; i++){
+		a = addr1[rand()%65535];
+	}
+	return 0;
+}
+
 void* groupC(void* args){
 	struct tidAndAddr* p = (struct tidAndAddr*)args;
 	int TID = p->ID;
@@ -91,7 +115,7 @@ int main(int argc, char** argv){
 	// create a bunch of threads randomly distributed them on different cores.
 	struct tidAndAddr gAArg;
 	struct superSet gAArgSuper;
-	struct tidAndAddr gBArg[24];
+	struct tidAndAddr gBArg;
 	struct tidAndAddr gCArg1;
 	struct tidAndAddr gCArg2;
 
@@ -113,10 +137,14 @@ int main(int argc, char** argv){
 	gAArg.ID = 0;
 	gAArgSuper.A = &gAArg;
 
+	gBArg.addr1 = tmpB;
+	gBArg.addr2 = NULL;
+
 	gCArg1.addr1 = NULL;
 	gCArg1.addr2 = tmpC;
 	gCArg2.addr1 = NULL;
 	gCArg2.addr2 = tmpC;
+
 
 	auto start = chrono::high_resolution_clock::now();
 
@@ -221,7 +249,36 @@ int main(int argc, char** argv){
 	CPU_SET(1, &cpus);
 	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
 	pthread_create(&threadA[16], &attr, groupA3, (void*)&gAArgSuper);
-	// ===================================================================
+
+	// =================================================================== B 
+	for (int i = 0; i < 24; ++i){
+		if (i % 4 == 0) {
+			pthread_attr_init(&attr);
+			CPU_ZERO(&cpus);
+			CPU_SET(0, &cpus);
+			pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+			pthread_create(&threadB[i], &attr, groupB1, (void*)&gBArg);
+		} else if (i % 4 == 1){
+			pthread_attr_init(&attr);
+			CPU_ZERO(&cpus);
+			CPU_SET(8, &cpus);
+			pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+			pthread_create(&threadB[i], &attr, groupB1, (void*)&gBArg);
+		} else if (i % 4 == 2){
+			pthread_attr_init(&attr);
+			CPU_ZERO(&cpus);
+			CPU_SET(0, &cpus);
+			pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+			pthread_create(&threadB[i], &attr, groupB2, (void*)&gBArg);
+		} else {
+			pthread_attr_init(&attr);
+			CPU_ZERO(&cpus);
+			CPU_SET(17, &cpus);
+			pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+			pthread_create(&threadB[i], &attr, groupB2, (void*)&gBArg);
+		}
+	}
+	// =================================================================== C
 
 	pthread_attr_init(&attr);
 	CPU_ZERO(&cpus);
@@ -267,10 +324,13 @@ int main(int argc, char** argv){
 
 
 	for (int i=0; i<17; i++){
-		pthread_join(threadA[i], NULL);
+		if (i < 17) {
+			pthread_join(threadA[i], NULL);
+		}
 		if (i < 7){
 			pthread_join(threadC[i], NULL);
 		}
+		pthread_join(threadB[i], NULL);
 	}
 
 	
