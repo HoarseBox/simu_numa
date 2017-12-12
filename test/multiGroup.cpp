@@ -69,6 +69,19 @@ void* groupA3(void* args){
 	return 0;
 }
 
+void* groupC(void* args){
+	struct tidAndAddr* p = (struct tidAndAddr*)args;
+	int TID = p->ID;
+	int* addr1 = p->addr1;
+	int* addr2 = p->addr2;
+	for (int i=0; i<5000; i++){
+		pthread_mutex_lock(&mutex2);
+		addr2[rand()%65535] = addr2[rand()%65535]+1;
+		pthread_mutex_unlock(&mutex2);
+	}
+	return 0;
+}
+
 int main(int argc, char** argv){
 	pthread_t threadA[17];
 	pthread_t threadB[24];
@@ -79,7 +92,8 @@ int main(int argc, char** argv){
 	struct tidAndAddr gAArg;
 	struct superSet gAArgSuper;
 	struct tidAndAddr gBArg[24];
-	struct tidAndAddr gCArg[7];
+	struct tidAndAddr gCArg1;
+	struct tidAndAddr gCArg2;
 
 	int* tmpA; 
 	int* tmpB;
@@ -99,17 +113,10 @@ int main(int argc, char** argv){
 	gAArg.ID = 0;
 	gAArgSuper.A = &gAArg;
 
-	/*
-	for (int i=0; i < 10; i++){
-		gAArg[i].addr1 = tmpA;
-		gAArg[i].addr2 = NULL;
-		gAArg[i].ID = i;
-	}
-	for (int i = 0; i != 7; ++i){
-		gAArgSuper[i].A = &(gAArg[0]);
-	}
-	*/
-
+	gCArg1.addr1 = NULL;
+	gCArg1.addr2 = tmpC;
+	gCArg2.addr1 = NULL;
+	gCArg2.addr2 = tmpC;
 
 	auto start = chrono::high_resolution_clock::now();
 
@@ -214,10 +221,59 @@ int main(int argc, char** argv){
 	CPU_SET(1, &cpus);
 	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
 	pthread_create(&threadA[16], &attr, groupA3, (void*)&gAArgSuper);
+	// ===================================================================
+
+	pthread_attr_init(&attr);
+	CPU_ZERO(&cpus);
+	CPU_SET(0, &cpus);
+	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+	pthread_create(&threadC[0], &attr, groupC, (void*)&gCArg1);
+
+	pthread_attr_init(&attr);
+	CPU_ZERO(&cpus);
+	CPU_SET(8, &cpus);
+	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+	pthread_create(&threadC[1], &attr, groupC, (void*)&gCArg1);
+
+	pthread_attr_init(&attr);
+	CPU_ZERO(&cpus);
+	CPU_SET(19, &cpus);
+	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+	pthread_create(&threadC[2], &attr, groupC, (void*)&gCArg1);
+
+	pthread_attr_init(&attr);
+	CPU_ZERO(&cpus);
+	CPU_SET(0, &cpus);
+	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+	pthread_create(&threadC[3], &attr, groupC, (void*)&gCArg2);
+
+	pthread_attr_init(&attr);
+	CPU_ZERO(&cpus);
+	CPU_SET(25, &cpus);
+	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+	pthread_create(&threadC[4], &attr, groupC, (void*)&gCArg2);
+
+	pthread_attr_init(&attr);
+	CPU_ZERO(&cpus);
+	CPU_SET(19, &cpus);
+	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+	pthread_create(&threadC[5], &attr, groupC, (void*)&gCArg2);
+
+	pthread_attr_init(&attr);
+	CPU_ZERO(&cpus);
+	CPU_SET(31, &cpus);
+	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+	pthread_create(&threadC[6], &attr, groupC, (void*)&gCArg2);
+
 
 	for (int i=0; i<17; i++){
 		pthread_join(threadA[i], NULL);
+		if (i < 7){
+			pthread_join(threadC[i], NULL);
+		}
 	}
+
+	
 //	for (int j=0; j<50; j++){
 	
 

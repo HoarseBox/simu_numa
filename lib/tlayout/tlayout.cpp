@@ -54,7 +54,7 @@ namespace {
 
     DenseMap<Instruction*, std::set<CallInst*> > Data2Threads;
 
-    DenseMap<Instruction*, std::set<CallInst*> > Mutex2Threads;
+    DenseMap<Value*, std::set<CallInst*> > Mutex2Threads;
 
     DenseMap<CallInst*, int> Thread2NewCoreNum;
 
@@ -95,7 +95,7 @@ bool Tlayout::runOnModule(Module &M) {
   PI = &getAnalysis<ProfileInfo>();
   
   // According to your machine, please hard coded hardware info here
-  for (int i = 0; i < TOTAL_CORE_NUM; ++i) {
+  for (size_t i = 0; i < TOTAL_CORE_NUM; ++i) {
     if (i < 8 || (i >= 16 && i <=23) ) {
       NODE2CORE[0].push_back(i);
     } else {
@@ -314,22 +314,24 @@ void Tlayout::createGlobalDataRecord(Module &M, const bool DEBUG) {
         StringRef lockFuncName = lockFunc->getName();
         if (lockFuncName.equals(FUNCNAME_PTHREAD_MUTEX_LOCK)){
           if (DEBUG) errs() << "find lockInst: " << *lockInst << "\n";
-          if (DEBUG) errs() << "mutex inst : " << *(lockInst->getOperand(0)) << "\n";
-          Instruction* mutexInst = dyn_cast<Instruction>(lockInst->getOperand(0));
-          Mutex2Threads[mutexInst].insert(callInst);
+          Value *mutexValue = lockInst->getOperand(0);
+          if (DEBUG) errs() << "mutex value : " << *mutexValue << "\n";
+          Mutex2Threads[mutexValue].insert(callInst);
           hasLock = true;
         }
       }
     }
+  }
 
-    if (DEBUG) errs() << "mutex to thread map size " << Mutex2Threads.size() << '\n';
-    for (auto MI = Mutex2Threads.begin(); MI != Mutex2Threads.end(); ++MI){
-      if (DEBUG) errs() << "thread count ====== " << MI->second.size() << '\n';      
-      /*
-      for (auto SI = MI->second.begin(); SI != MI->second.end(); ++SI){
-
+  if (DEBUG) {
+    errs() << "\tMutex2Threads.size = " << Mutex2Threads.size() << '\n';
+    for (DenseMap<Value*, std::set<CallInst*> >::iterator MI = Mutex2Threads.begin(); 
+      MI != Mutex2Threads.end(); ++MI) {
+      errs() <<"For mutex ["<< *(MI->first) << "] used by thread(s):\n";
+      std::set<CallInst*> &tempSet = MI->second;
+      for (std::set<CallInst*>::iterator SI = tempSet.begin(); SI != tempSet.end(); ++SI) {
+        errs() << '\t' << **SI << '\n';
       }
-      */
     }
   }
 }
@@ -365,7 +367,7 @@ void Tlayout::findDataOverlapping(Module &M, const bool DEBUG) {
     hasCommon.push_back(false);
   }
 
-  for (DenseMap<Instruction*, std::set<CallInst*> >::iterator MTI = Mutex2Threads.begin();
+  for (DenseMap<Value*, std::set<CallInst*> >::iterator MTI = Mutex2Threads.begin();
       MTI != Mutex2Threads.end(); ++MTI){
     unionFindVec.push_back(&(MTI->second));
     hasCommon.push_back(false);
