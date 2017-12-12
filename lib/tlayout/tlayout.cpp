@@ -46,7 +46,7 @@ namespace {
     DenseMap<CallInst*, CallInst*> Thread2AffinityMap; // thread_create Inst -> setaffinity Inst
 
     DenseMap<CallInst*, Instruction*> Thread2CPUSetInstMap;
-    DenseMap<CallInst*, Instruction*> Thread2CPUIdInstMap;
+    // DenseMap<CallInst*, Instruction*> Thread2CPUIdInstMap;
 
     DenseMap<Instruction*, std::set<Instruction*> > ThreadGlobalDataMap;
 
@@ -180,8 +180,8 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
                 if (I && isa<StoreInst>(temp)){
                   if (DEBUG) errs() << *temp << '\n';
                   if (storeCount == 0) {
-                    Thread2CPUIdInstMap[callInst] = temp;
-                  } else if (storeCount == 1) {
+                  //   Thread2CPUIdInstMap[callInst] = temp;
+                  // } else if (storeCount == 1) {
                     Thread2CPUSetInstMap[callInst] = temp;
                   } else {
                     errs() << "ERROR: has more than 2 stores, check IR please!\n";
@@ -429,21 +429,21 @@ bool Tlayout::optimizeThreadLocation(const bool DEBUG) {
     MI != Thread2AffinityMap.end(); ++MI){
 
     CallInst* threadCreateInst = MI->first;
-    Instruction* setCoreId = Thread2CPUIdInstMap[threadCreateInst];
+    // Instruction* setCoreId = Thread2CPUIdInstMap[threadCreateInst];
     Instruction* setCoreInst = Thread2CPUSetInstMap[threadCreateInst];
     if (DEBUG) errs() << "thread:\t" << *threadCreateInst << '\n';
-    if (DEBUG) errs() << "set id:\t" << *setCoreId << '\n';
+    // if (DEBUG) errs() << "set id:\t" << *setCoreId << '\n';
     if (DEBUG) errs() << "set core:\t" << *setCoreInst << '\n';
 
     int coreNum = Thread2NewCoreNum[threadCreateInst];
     
-    Type *valueType = &(*(setCoreId->getOperand(0))->getType());
-    Constant *coreNumValue = ConstantInt::get(valueType, coreNum);
-    setCoreId->setOperand(0, coreNumValue);
-    if (DEBUG) errs() << "id after:\t" << *setCoreId << '\n';
+    // Type *valueType = &(*(setCoreId->getOperand(0))->getType());
+    // Constant *coreNumValue = ConstantInt::get(valueType, coreNum);
+    // setCoreId->setOperand(0, coreNumValue);
+    // if (DEBUG) errs() << "id after:\t" << *setCoreId << '\n';
 
-    valueType = &(*(setCoreInst->getOperand(0))->getType());
-    coreNumValue = ConstantInt::get(valueType, coreNum);
+    Type *valueType = &(*(setCoreInst->getOperand(0))->getType());
+    Constant *coreNumValue = ConstantInt::get(valueType, coreNum);
     setCoreInst->setOperand(0, coreNumValue);
     if (DEBUG) errs() << "core after:\t" << *setCoreInst << '\n';
   } 
