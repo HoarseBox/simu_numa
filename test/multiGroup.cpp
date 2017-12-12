@@ -333,81 +333,9 @@ int main(int argc, char** argv){
 		pthread_join(threadB[i], NULL);
 	}
 
-	
-//	for (int j=0; j<50; j++){
-	
-
-		// for (int i=0; i<NumThreads/2; i++){
-		// 	pthread_attr_init(&attr);
-		// 	CPU_ZERO(&cpus);
-		// 	CPU_SET(i, &cpus);
-		// 	int threadNum = i;
-		// 	if (i%2==0){
-		// 		pthread_attr_init(&attr);
-		// 		CPU_ZERO(&cpus);
-		// 		p[i].coreId = i%8;
-		// 		CPU_SET(p[i].coreId, &cpus);
-		// 		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-		// 		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
-		// 	}
-		// 	else{
-		// 		pthread_attr_init(&attr);
-		// 		CPU_ZERO(&cpus);
-		// 		p[i].coreId = i%8;
-		// 		CPU_SET(p[i].coreId, &cpus);
-		// 		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-		// 		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
-		// 	}
-		// }
-		// for (int i=NumThreads/2; i<NumThreads; i++){
-		// 	pthread_attr_init(&attr);
-		// 	CPU_ZERO(&cpus);
-		// 	CPU_SET(i, &cpus);
-		// 	int threadNum = i;
-		// 	if (i%2==0){
-		// 		pthread_attr_init(&attr);
-		// 		CPU_ZERO(&cpus);
-		// 		p[i].coreId = i%8;
-		// 		CPU_SET(p[i].coreId, &cpus);
-		// 		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-		// 		pthread_create(&threads[i], &attr, DoWork1, (void*)&p[i]);
-		// 	}
-		// 	else{
-		// 		pthread_attr_init(&attr);
-		// 		CPU_ZERO(&cpus);
-		// 		p[i].coreId = i%8;
-		// 		CPU_SET(p[i].coreId, &cpus);
-		// 		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-		// 		pthread_create(&threads[i], &attr, DoWork1, (void*)&p[i]);
-		// 	}
-		// }
-
-		// for (int i=0; i<NumThreads; i++){
-		// 	pthread_join(threads[i], NULL);
-		// }
-//	}
-
 	auto end = chrono::high_resolution_clock::now();
 	std::chrono::duration<double> diff = end - start;
 	cout<<"It took me "<<diff.count()<<"seconds."<<endl;
-
-//	auto start = chrono::high_resolution_clock::now();
-//	for (int i=0; i<NumThreads; i++){
-//		pthread_attr_init(&attr);
-//		CPU_ZERO(&cpus);
-//		CPU_SET(i+7, &cpus);
-//		int threadNum = i;
-//		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-//		pthread_create(&threads[i], &attr, DoWork, (void*)&p[i]);
-//	}
-
-//	for (int i=0; i<NumThreads; i++){
-//		pthread_join(threads[i], NULL);
-//	}
-	
-//	auto end = chrono::high_resolution_clock::now();
-//	std::chrono::duration<double> diff = end - start;
-//	cout<<"It took me "<<diff.count()<<"seconds."<<endl;
 
 	return 0;
 }
