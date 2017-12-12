@@ -9,7 +9,9 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ProfileInfo.h"
 
+#include <algorithm>
 #include <set>
+#include <vector>
 
 
 using namespace llvm;
@@ -22,12 +24,16 @@ namespace {
     static const StringRef FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP;
     static const StringRef FUNCNAME_PTHREAD_MUTEX_LOCK;
     static const StringRef FUNCNAME_PTHREAD_MUTEX_UNLOCK;
-    static const unsigned int NUM_CORES;
+    static const unsigned CORE_NUM_PER_NODE;
+    static const unsigned NUM_NODES;
+    static const unsigned TOTAL_CORE_NUM;
 
     static char ID;
     ProfileInfo* PI;
+    // LoopInfo *LI;
 
     Tlayout() : ModulePass(ID) {}
+
     void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequired<LoopInfo>();
       AU.addRequired<ProfileInfo>();
@@ -35,6 +41,8 @@ namespace {
     bool runOnModule(Module &M);
 
   private:
+    DenseMap<unsigned, std::vector<unsigned> > NODE2CORE;
+
     DenseMap<CallInst*, CallInst*> Thread2AffinityMap; // thread_create Inst -> setaffinity Inst
 
     DenseMap<CallInst*, Instruction*> Thread2CPUSetInstMap;
@@ -42,16 +50,18 @@ namespace {
 
     DenseMap<Instruction*, std::set<Instruction*> > ThreadGlobalDataMap;
 
-    DenseMap<CallInst*, unsigned int> Thread2ExecutionCount;
+    DenseMap<CallInst*, double> Thread2ExecutionCount;
 
     DenseMap<Instruction*, std::set<CallInst*> > Data2Threads;
 
     DenseMap<Instruction*, std::set<CallInst*> > Mutex2Threads;
 
-    LoopInfo *LI;
     DenseMap<CallInst*, int> Thread2NewCoreNum;
 
     //DenseMap<int, std::set<CallInst*> > coreNum2Threads;
+
+    bool hasIntersect(std::set<CallInst*>* set1, std::set<CallInst*>* set2);
+    double getThreadCreateExecutionCount(std::set<CallInst*>* threadSet);
 
 
     void createThreadInfoRecord(Module &M, const bool DEBUG = false);
@@ -67,7 +77,11 @@ namespace {
   const StringRef Tlayout::FUNCNAME_PTHREAD_ATTR_SETAFFINITY_NP = StringRef("pthread_attr_setaffinity_np");
   const StringRef Tlayout::FUNCNAME_PTHREAD_MUTEX_LOCK = StringRef("pthread_mutex_lock");
   const StringRef Tlayout::FUNCNAME_PTHREAD_MUTEX_UNLOCK = StringRef("pthread_mutex_unlock");
-  const unsigned int Tlayout::NUM_CORES = 8;
+  
+  // According to your machine, please hard coded hardware info here
+  const unsigned Tlayout::CORE_NUM_PER_NODE = 16;
+  const unsigned Tlayout::NUM_NODES = 2;
+  const unsigned Tlayout::TOTAL_CORE_NUM = 32;
 
 }  // end of anonymous namespace
 
@@ -77,9 +91,17 @@ static RegisterPass<Tlayout> X("tlayout", "Optimize Thread Layout on Multicore")
 
 bool Tlayout::runOnModule(Module &M) {
 
-  PI = &getAnalysis<ProfileInfo>();
-
   bool changed = false;
+  PI = &getAnalysis<ProfileInfo>();
+  
+  // According to your machine, please hard coded hardware info here
+  for (int i = 0; i < TOTAL_CORE_NUM; ++i) {
+    if (i < 8 || (i >= 16 && i <=23) ) {
+      NODE2CORE[0].push_back(i);
+    } else {
+      NODE2CORE[1].push_back(i);
+    }
+  }
 
   /* TODO: add comments to explain the function
    */
@@ -185,7 +207,7 @@ void Tlayout::createThreadInfoRecord(Module &M, const bool DEBUG) {
     MI != Thread2AffinityMap.end(); ++MI) {
     BasicBlock *bb = MI->first->getParent();
     double executionCount = PI->getExecutionCount(bb);
-    Thread2ExecutionCount[MI->first] = (unsigned int) executionCount;
+    Thread2ExecutionCount[MI->first] = executionCount;
     if (DEBUG) errs() << "map size ===  " << Thread2ExecutionCount.size() << "\n"; 
     if (DEBUG) errs() << "ExecutionCount: " << executionCount << "\n";
   }
@@ -312,26 +334,91 @@ void Tlayout::createGlobalDataRecord(Module &M, const bool DEBUG) {
   }
 }
 
+bool Tlayout::hasIntersect(std::set<CallInst*>* set1, std::set<CallInst*>* set2){
+  for (std::set<CallInst*>::iterator SI = set1->begin(); SI != set1->end(); ++SI){
+    CallInst* cur = *SI;
+    if (set2->find(cur) != set2->end()){
+      return true;
+    }
+  }
+  return false;
+}
+
+double Tlayout::getThreadCreateExecutionCount(std::set<CallInst*>* threadSet) {
+  double executionCount = 0;
+  for (std::set<CallInst*>::iterator SI = threadSet->begin(); SI != threadSet->end(); ++SI) {
+    executionCount += Thread2ExecutionCount[*SI];
+  }
+  return executionCount;
+}
 
 void Tlayout::findDataOverlapping(Module &M, const bool DEBUG) {
   if (DEBUG) errs() << "-----------------findDataOverlapping----------------\n";
 
-  unsigned int currentCore = 0;
-  for (DenseMap<Instruction*, std::set<CallInst*> >::iterator MI = Data2Threads.begin();
-    MI != Data2Threads.end(); ++MI){
-
-    //TODO: find the overlap btw set for each key, 
-    //need a heuristic to separate threads into at most 8 cores(according to the machine)
-
-    std::set<CallInst*> accessCommonDataThreads = MI->second;
-    currentCore %= NUM_CORES;
-    for (std::set<CallInst*>::iterator SI = accessCommonDataThreads.begin(); 
-      SI != accessCommonDataThreads.end(); ++SI){
-      CallInst* threadCreateInst = dyn_cast<CallInst>(*SI);
-      Thread2NewCoreNum[threadCreateInst] = currentCore;
-    }
-    currentCore++;
+  // union find thread sets
+  std::vector<std::set<CallInst*>* > unionFindVec;
+  std::vector<bool> hasCommon;
+  
+  for (DenseMap<Instruction*, std::set<CallInst*> >::iterator DTI = Data2Threads.begin();
+    DTI != Data2Threads.end(); ++DTI){
+    unionFindVec.push_back(&(DTI->second));
+    hasCommon.push_back(false);
   }
+
+  for (DenseMap<Instruction*, std::set<CallInst*> >::iterator MTI = Mutex2Threads.begin();
+      MTI != Mutex2Threads.end(); ++MTI){
+    unionFindVec.push_back(&(MTI->second));
+    hasCommon.push_back(false);
+  }
+
+  for (size_t i = 0; i != unionFindVec.size() - 1; ++i){
+    std::set<CallInst*>* iSetPtr = unionFindVec[i];
+    for (size_t j = i + 1; j != unionFindVec.size(); ++j){
+      std::set<CallInst*>* jSetPtr = unionFindVec[j];
+      if (hasIntersect(iSetPtr, jSetPtr)){
+        for (std::set<CallInst*>::iterator SI = iSetPtr->begin(); SI != iSetPtr->end(); ++SI){
+          jSetPtr->insert(*SI);
+        }
+        hasCommon[i] = true;
+      } 
+    }
+  }
+
+  //greed assign threads to nodes (related to K partition problem)
+  std::vector<std::pair<double, std::set<CallInst*>* > > groupedThreads;
+  for (size_t i = 0; i < hasCommon.size(); ++i) {
+    if (!hasCommon[i]) {
+      double executionCount = getThreadCreateExecutionCount(unionFindVec[i]);
+      if (DEBUG) errs() << "ExecutionCount for " << i << " = " << executionCount << '\n';
+      groupedThreads.push_back(std::make_pair(executionCount, unionFindVec[i]));
+    }
+  }
+  std::sort(groupedThreads.begin(), groupedThreads.end());
+  std::reverse(groupedThreads.begin(), groupedThreads.end());
+
+  std::vector<double> curCount;
+  for(size_t i = 0; i < NUM_NODES; ++i) {
+    curCount.push_back(0);
+  }
+  for (size_t i = 0; i < groupedThreads.size(); ++i) {
+    
+    if (DEBUG) errs() << groupedThreads[i].first << '\t' << groupedThreads[i].second->size() << '\n';
+    
+    std::vector<double>::iterator minI = std::min_element(curCount.begin(), curCount.end());
+    unsigned currentNode = minI - curCount.begin();
+    
+    if (DEBUG) errs() << "test: " << *minI << "\t" << currentNode << '\n'; 
+    
+    curCount[currentNode] += groupedThreads[i].first;
+    int counter = 0;
+    std::set<CallInst*>* threadSet = groupedThreads[i].second;
+    for (std::set<CallInst*>::iterator SI = threadSet->begin(); SI != threadSet->end(); ++SI) {
+      Thread2NewCoreNum[*SI] = NODE2CORE[currentNode][counter]; 
+      if (DEBUG) errs() << "core id: " << NODE2CORE[currentNode][counter] << '\n'; 
+      counter = (counter + 1) % CORE_NUM_PER_NODE;
+    }
+  }
+
   return;
 }
 
@@ -362,5 +449,4 @@ bool Tlayout::optimizeThreadLocation(const bool DEBUG) {
   } 
   return true;
 }
-
 
