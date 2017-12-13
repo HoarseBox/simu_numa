@@ -15,7 +15,6 @@ using namespace std;
  
 struct tidAndAddr{
 	int ID;
-	int coreId;
 	int* addr1;
 };
 
@@ -25,12 +24,6 @@ void* DoWork(void* args){
 	// access data according the core number
 	struct tidAndAddr* p = (struct tidAndAddr*)args;
 	int TID = p->ID;
-	int coreId = p->coreId;
-	if (coreId >= 4) {
-		cout << "sleeping...\n";
-		usleep(5000);
-	}
-
 	int* addr1 = p->addr1;
 	for (int i=0; i<10000; i++){
 		 addr1[rand()%65535] = addr1[rand()%65535]+1;
@@ -61,8 +54,7 @@ int main(int argc, char** argv){
 	
 	pthread_attr_init(&attr);
 	CPU_ZERO(&cpus);
-	p.coreId = coreNum1;
-	CPU_SET(p.coreId, &cpus);
+	CPU_SET(coreNum1, &cpus);
 	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
 	pthread_create(&thread, &attr, DoWork, (void*)&p);
 
@@ -73,8 +65,7 @@ int main(int argc, char** argv){
 
 	pthread_attr_init(&attr);
 	CPU_ZERO(&cpus);
-	p.coreId = coreNum2;
-	CPU_SET(p.coreId, &cpus);
+	CPU_SET(coreNum2, &cpus);
 	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
 	pthread_create(&thread, &attr, DoWork, (void*)&p);
 
